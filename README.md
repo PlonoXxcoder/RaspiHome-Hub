@@ -24,7 +24,7 @@ Ce projet utilise un Raspberry Pi avec un Sense HAT pour surveiller les conditio
 
 1.  **Cloner le dépôt:**
     ```bash
-    git clone [URL du dépôt]
+    git clone (https://github.com/PlonoXxcoder/raspberry-pi-plant-monitor)
     ```
 
 2.  **Naviguer vers le répertoire du projet:**
@@ -76,11 +76,6 @@ Ce projet utilise un Raspberry Pi avec un Sense HAT pour surveiller les conditio
 
 Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
-## Étapes Supplémentaires
-
-*   **Créer un fichier `LICENSE`:** Créez un fichier nommé `LICENSE` à la racine du dépôt et collez le contenu de la licence MIT (voir ci-dessous).
-*   **Configurer les données des plantes:** Remplissez le fichier `plants.json` avec les données de vos plantes.
-*   **Tester minutieusement:** Testez l'application pour vous assurer qu'elle fonctionne correctement et que les alertes fonctionnent comme prévu.
 
 ## Développement Futur
 
