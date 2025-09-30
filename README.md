@@ -60,7 +60,7 @@ Le système repose sur une architecture simple mais robuste :
 
 ### Matériel
 
-*   Un Raspberry Pi (modèle 3, 4, ou plus récent recommandé)
+*   Un Raspberry Pi (j'utilise un modele 1)
 *   Une carte d'extension [Sense HAT](https://www.raspberrypi.com/products/sense-hat/)
 *   Une alimentation électrique fiable
 *   Une carte microSD avec Raspberry Pi OS installé
