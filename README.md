@@ -1,6 +1,6 @@
 # RaspiWeatherPlant : Station Météo & Gardien de Plantes sur Raspberry Pi
 
-<img src="https://assets.raspberrypi.com/static/80536d1af9fbc26cee85650c74a9e979/9ff6b/a222a1d657906db95efbca8b8467037fa1a89def_sense-hat-1733x1080-1-1733x1080.webp" alt="Sense HAT" width="600"/>
+<img src="https://assets.raspberrypi.com/static/80536d1af9fbc26cee85650c74a9e979/9ff6b/a222a1d657906db95efbca8b8467037fa1a89def_sense-hat-1733x1080-1-1733x1080.webp" alt="Sense HAT" width="100"/>
 
 **RaspiWeatherPlant** transforme votre Raspberry Pi équipé d'un Sense HAT en un centre de contrôle environnemental intelligent. Ce projet offre une station météo complète accessible via une interface web et un assistant de jardinage proactif qui vous rappelle quand arroser vos plantes grâce à des alertes visuelles sur la matrice LED.
 
