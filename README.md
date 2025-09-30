@@ -36,13 +36,11 @@
 
 ## Aperçu de l'Interface
 
-*(Astuce : Ajoutez ici des captures d'écran de votre interface web pour rendre le README encore plus attractif !)*
 
 **Exemple de Dashboard :**
 ![Placeholder pour screenshot du dashboard](https://i.imgur.com/your-screenshot-placeholder.png)
 
 **Alerte sur le Sense HAT :**
-*(Imaginez une photo de votre Sense HAT affichant le message "Arroser Echeveria!")*
 
 ## Architecture Technique
 
