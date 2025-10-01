@@ -38,8 +38,7 @@
 
 
 **Exemple de Dashboard :**
-![Placeholder pour screenshot du dashboard](https://i.imgur.com/your-screenshot-placeholder.png)
-
+![Aperçu du Dashboard RaspiWeatherPlant](assets/dashboard-screenshot.png)
 **Alerte sur le Sense HAT :**
 
 ## Architecture Technique
