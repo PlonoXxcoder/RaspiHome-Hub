@@ -9,17 +9,11 @@
 - [Aperçu de l'Interface](#aperçu-de-linterface)
 - [Architecture Technique](#architecture-technique)
 - [Prérequis](#prérequis)
-  - [Matériel](#matériel)
-  - [Logiciel](#logiciel)
 - [Installation Facile](#installation-facile)
 - [Guide d'Utilisation](#guide-dutilisation)
-  - [Démarrage du Serveur](#démarrage-du-serveur)
-  - [Configuration des Plantes](#configuration-des-plantes)
 - [Structure du Projet](#structure-du-projet)
 - [Personnalisation Avancée](#personnalisation-avancée)
 - [Feuille de Route et Idées Futures](#feuille-de-route-et-idées-futures)
-  - [🚀 Prochaines Étapes (Feuille de Route)](#-prochaines-étapes-feuille-de-route)
-  - [💡 Idées pour l'Avenir](#-idées-pour-lavenir)
 - [Contribuer](#contribuer)
 - [Licence](#licence)
 
@@ -27,6 +21,7 @@
 
 *   📊 **Dashboard Météo en Temps Réel** : Affiche la température, l'humidité, la pression et un **indice de chaleur** calculé selon la formule de la NOAA.
 *   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, 12 heures, jour, semaine, mois et année.
+*   🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels pour un confort de lecture optimal, de jour comme de nuit. Le choix est mémorisé.
 *   💧 **Assistant de Jardinage Intelligent** :
     *   Définit des cycles d'arrosage personnalisés pour chaque plante, avec des intervalles différents pour l'été et l'hiver.
     *   Génère des **alertes visuelles** sur la matrice LED du Sense HAT lorsqu'une plante a soif.
@@ -36,10 +31,11 @@
 
 ## Aperçu de l'Interface
 
+L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
 
-**Exemple de Dashboard :**
-![Aperçu du Dashboard RaspiWeatherPlant](assets/dashboard-screenshot.png)
-**Alerte sur le Sense HAT :**
+| Thème Clair | Thème Sombre |
+| :---: | :---: |
+| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot.png) |
 
 ## Architecture Technique
 
@@ -48,8 +44,8 @@ Le système repose sur une architecture simple mais robuste :
 1.  **Capteurs (Sense HAT)** : Collecte en continu les données de température, d'humidité et de pression.
 2.  **Script Python (`serveur_temp.py`)** :
     *   **Enregistrement** : Un thread dédié sauvegarde les données des capteurs toutes les 5 minutes dans un fichier `data.csv`.
-    *   **Gestion des Plantes** : Un second thread vérifie périodiquement (entre 18h et 21h) si une plante a besoin d'être arrosée en se basant sur les règles définies et la date du dernier arrosage stockée dans `plants.json`.
-    *   **Serveur Web (Flask)** : Expose plusieurs points d'API (`routes`) pour servir les données en temps réel, l'historique et l'état des plantes à l'interface web.
+    *   **Gestion des Plantes** : Un second thread vérifie périodiquement si une plante a besoin d'être arrosée en se basant sur les règles et la date du dernier arrosage stockée dans `plants.json`.
+    *   **Serveur Web (Flask)** : Expose plusieurs API pour servir les données en temps réel, l'historique et l'état des plantes à l'interface web.
 3.  **Stockage** :
     *   `data.csv` : Stocke l'historique des mesures environnementales.
     *   `plants.json` : Contient la configuration de vos plantes et la date de leur dernier arrosage.
@@ -59,10 +55,9 @@ Le système repose sur une architecture simple mais robuste :
 
 ### Matériel
 
-*   Un Raspberry Pi (j'utilise un modele 1)
+*   Un Raspberry Pi (testé sur un modèle 1 B+)
 *   Une carte d'extension [Sense HAT](https://www.raspberrypi.com/products/sense-hat/)
-*   Une alimentation électrique fiable
-*   Une carte microSD avec Raspberry Pi OS installé (j'utilise une carte Sandisk 64 Go)
+*   Une alimentation électrique fiable et une carte microSD.
 
 ### Logiciel
 
@@ -79,17 +74,23 @@ Suivez ces étapes sur le terminal de votre Raspberry Pi :
     sudo apt update && sudo apt upgrade -y
     ```
 
-2.  **Cloner ce dépôt** :
+2.  **Cloner ce dépôt** (n'oubliez pas de remplacer l'URL par la vôtre) :
     ```bash
     git clone [URL_DE_VOTRE_DEPOT_GITHUB]
     cd RaspiWeatherPlant 
     ```
 
-3.  **Installer les dépendances Python** :
+3.  **Créer le fichier `requirements.txt`** s'il n'existe pas. Créez un fichier `requirements.txt` et ajoutez-y les lignes suivantes :
+    ```
+    Flask
+    sense-hat
+    pandas
+    ```
+
+4.  **Installer les dépendances Python** :
     ```bash
     pip3 install -r requirements.txt
     ```
-    Cela installera automatiquement `Flask`, `sense-hat` et `pandas`.
 
 ## Guide d'Utilisation
 
@@ -110,21 +111,30 @@ Suivez ces étapes sur le terminal de votre Raspberry Pi :
 
 ### Configuration des Plantes
 
-1.  **Ouvrez le fichier `plants.json`** : `nano plants.json`
-2.  **Modifiez le fichier** pour y inclure vos plantes, en spécifiant un `nom` et la date du `last_watered` (format `AAAA-MM-JJ`).
+Le script crée automatiquement un fichier `plants.json` au premier lancement. Vous pouvez ensuite l'éditer pour ajouter vos plantes :
+
+1.  **Ouvrez le fichier** : `nano plants.json`
+2.  **Modifiez-le** en suivant la structure. La clé (`echeveria` dans l'exemple) doit correspondre à une entrée dans `PLANT_RULES` dans le script Python.
     ```json
     {
-      "echeveria": { "nom": "Echeveria", "last_watered": "2024-08-15" }
+      "echeveria": { 
+        "nom": "Echeveria", 
+        "last_watered": "2024-08-15" 
+      }
     }
     ```
 
 ## Structure du Projet
 ```.
+├── assets/
+│   ├── dashboard-dark-screenshot.png
+│   └── dashboard-white-screenshot.png
+├── templates/
+│   └── index.html       # Interface web
 ├── serveur_temp.py      # Script principal
 ├── requirements.txt     # Dépendances Python
 ├── plants.json          # Configuration des plantes
-└── templates/
-    └── index.html       # Interface web
+└── README.md
 ```
 
 ## Personnalisation Avancée
