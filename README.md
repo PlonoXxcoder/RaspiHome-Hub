@@ -163,6 +163,7 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
 
 - **[ ] v1.3 : Gestion des Plantes via l'UI**
     - [ ] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
+    - [ ] Ajouter D'autres Raspberry
 
 ### 💡 Idées pour l'Avenir
 
