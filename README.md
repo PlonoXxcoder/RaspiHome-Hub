@@ -155,7 +155,7 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
 - **[ ] v1.1 : Améliorations de l'Interface**
     - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
     - [ ] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
-    - [ ] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
+    - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
 
 - **[ ] v1.2 : Notifications Avancées**
     - [ ] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
