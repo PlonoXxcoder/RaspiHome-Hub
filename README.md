@@ -163,7 +163,9 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
 
 - **[ ] v1.3 : Gestion des Plantes via l'UI**
     - [ ] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
-    - [ ] Ajouter D'autres Raspberry
+    - [ ] Ajouter d'autres Raspberry afin de terminer chaque température et pression de chaque piece de la maison/appartement.
+    - [ ] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération 
+
 
 ### 💡 Idées pour l'Avenir
 
