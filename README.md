@@ -56,6 +56,7 @@ Le système repose sur une architecture simple mais robuste :
     *   `data.csv` : Stocke l'historique des mesures environnementales.
     *   `plants.json` : Contient la configuration de vos plantes et la date de leur dernier arrosage.
 4.  **Interface Utilisateur (HTML/JavaScript)** : Une page web unique (`index.html`) qui interroge les API du serveur Flask pour afficher les données et les graphiques de manière dynamique.
+5.  **Service de Filtrage DNS (AdGuard Home) :** Un service autonome qui intercepte toutes les requêtes DNS du réseau sur le port 53. Il consulte ses listes de filtres pour bloquer les domaines indésirables avant même qu'ils n'atteignent vos appareils, et expose son interface web d'administration sur le port 80.
 
 ## Prérequis
 
@@ -64,14 +65,18 @@ Le système repose sur une architecture simple mais robuste :
 *   Un Raspberry Pi (testé sur un modèle 1 B+)
 *   Une carte d'extension [Sense HAT](https://www.raspberrypi.com/products/sense-hat/)
 *   Une alimentation électrique fiable et une carte microSD.
+*   Recommandé : Un câble Ethernet pour une connexion stable du serveur.
+
 
 ### Logiciel
 
 *   Python 3.x
 *   Git (pour cloner le dépôt)
 *   Les bibliothèques Python listées dans `requirements.txt`.
+*   Une installation d'AdGuard Home (instructions ci-dessous).
 
 ## Installation Facile
+###  Étape 1 : Installation de la Station Météo
 
 Suivez ces étapes sur le terminal de votre Raspberry Pi :
 
