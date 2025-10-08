@@ -87,7 +87,7 @@ Suivez ces étapes sur le terminal de votre Raspberry Pi :
 
 2.  **Cloner ce dépôt** (n'oubliez pas de remplacer l'URL par la vôtre) :
     ```bash
-    git clone [URL_DE_VOTRE_DEPOT_GITHUB]
+    git clone https://github.com/PlonoXxcoder/RaspiHome-Hub
     cd RaspiWeatherPlant 
     ```
 
