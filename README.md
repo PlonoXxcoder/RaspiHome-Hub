@@ -33,6 +33,7 @@
   *   🕵️ Surveillance du Trafic : Accédez à un tableau de bord détaillé pour voir quelles requêtes DNS sont effectuées par vos appareils et lesquelles sont bloquées
   *   🔒 Sécurité Améliorée : Protège contre les sites de phishing et de logiciels malveillants.
   *   👨‍👩‍👧 Contrôle Parental : Bloquez l'accès aux contenus pour adultes et activez la recherche sécurisée sur les moteurs de recherche.
+  *   ✅ Hautement Personnalisable : Ajoutez vos propres listes de blocage et règles de filtrage.
 
 ## Aperçu de l'Interface
 
