@@ -29,6 +29,7 @@
    *   🌐 **Interface Web Intuitive** : Une application web légère et responsive construite avec Flask pour un accès facile depuis n'importe quel appareil sur votre réseau local.
    *   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
 ###    Protection Réseau avec AdGuard Home
+  *   ⛔ Blocage des Publicités et Traqueurs : Filtre le contenu indésirable sur tous les appareils de votre réseau (smartphones, ordinateurs, TV connectées) sans installer de logiciel client.
 ## Aperçu de l'Interface
 
 L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
