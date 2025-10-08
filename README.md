@@ -32,6 +32,8 @@
   *   ⛔ Blocage des Publicités et Traqueurs : Filtre le contenu indésirable sur tous les appareils de votre réseau (smartphones, ordinateurs, TV connectées) sans installer de logiciel client.
   *   🕵️ Surveillance du Trafic : Accédez à un tableau de bord détaillé pour voir quelles requêtes DNS sont effectuées par vos appareils et lesquelles sont bloquées
   *   🔒 Sécurité Améliorée : Protège contre les sites de phishing et de logiciels malveillants.
+  *   👨‍👩‍👧 Contrôle Parental : Bloquez l'accès aux contenus pour adultes et activez la recherche sécurisée sur les moteurs de recherche.
+
 ## Aperçu de l'Interface
 
 L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
