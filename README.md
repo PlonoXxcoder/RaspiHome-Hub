@@ -103,6 +103,9 @@ Suivez ces étapes sur le terminal de votre Raspberry Pi :
     pip3 install -r requirements.txt
     ```
 
+###  Étape 2 : Installation d'AdGuard Home
+
+
 ## Guide d'Utilisation
 
 ### Démarrage du Serveur
