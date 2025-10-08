@@ -31,6 +31,7 @@
 ###    Protection Réseau avec AdGuard Home
   *   ⛔ Blocage des Publicités et Traqueurs : Filtre le contenu indésirable sur tous les appareils de votre réseau (smartphones, ordinateurs, TV connectées) sans installer de logiciel client.
   *   🕵️ Surveillance du Trafic : Accédez à un tableau de bord détaillé pour voir quelles requêtes DNS sont effectuées par vos appareils et lesquelles sont bloquées
+  *   🔒 Sécurité Améliorée : Protège contre les sites de phishing et de logiciels malveillants.
 ## Aperçu de l'Interface
 
 L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
