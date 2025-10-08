@@ -1,8 +1,8 @@
-# RaspiWeatherPlant : Station Météo & Gardien de Plantes sur Raspberry Pi
+# RaspiHome Hub : Météo, Jardinage et Protection Réseau sur Raspberry Pi
 
 <img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
 
-**RaspiHome Hub** (anciennement RaspiWeatherPlant) transforme votre Raspberry Pi équipé d'un Sense HAT en un centre de contrôle environnemental intelligent. Ce projet offre une station météo complète accessible via une interface web et un assistant de jardinage proactif qui vous rappelle quand arroser vos plantes grâce à des alertes visuelles sur la matrice LED.
+**RaspiHome Hub** (anciennement RaspiWeatherPlant) transforme votre Raspberry Pi en un serveur domestique multi-fonctions. Ce projet combine une station météo complète et un assistant de jardinage proactif avec un puissant bloqueur de publicités et de traqueurs pour tout votre réseau domestique grâce à AdGuard Home.
 
 ## Table des Matières
 - [Fonctionnalités Clés](#fonctionnalités-clés)
@@ -18,17 +18,17 @@
 - [Licence](#licence)
 
 ## Fonctionnalités Clés
-
-*   📊 **Dashboard Météo en Temps Réel** : Affiche la température, l'humidité, la pression et un **indice de chaleur** calculé selon la formule de la NOAA.
-*   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, 12 heures, jour, semaine, mois et année.
-*   🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels pour un confort de lecture optimal, de jour comme de nuit. Le choix est mémorisé.
-*   💧 **Assistant de Jardinage Intelligent** :
-    *   Définit des cycles d'arrosage personnalisés pour chaque plante, avec des intervalles différents pour l'été et l'hiver.
-    *   Génère des **alertes visuelles** sur la matrice LED du Sense HAT lorsqu'une plante a soif.
-    *   Permet de confirmer l'arrosage via l'interface web ou directement avec le **joystick du Sense HAT**.
-*   🌐 **Interface Web Intuitive** : Une application web légère et responsive construite avec Flask pour un accès facile depuis n'importe quel appareil sur votre réseau local.
-*   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
-
+###   Station Météo & Jardinage
+   *   📊 **Dashboard Météo en Temps Réel** : Affiche la température, l'humidité, la pression et un **indice de chaleur** calculé selon la formule de la NOAA.
+   *   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, 12 heures, jour, semaine, mois et année.
+   *   🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels pour un confort de lecture optimal, de jour comme de nuit. Le choix est mémorisé.
+   *   💧 **Assistant de Jardinage Intelligent** :
+       *   Définit des cycles d'arrosage personnalisés pour chaque plante, avec des intervalles différents pour l'été et l'hiver.
+       *   Génère des **alertes visuelles** sur la matrice LED du Sense HAT lorsqu'une plante a soif.
+       *   Permet de confirmer l'arrosage via l'interface web ou directement avec le **joystick du Sense HAT**.
+   *   🌐 **Interface Web Intuitive** : Une application web légère et responsive construite avec Flask pour un accès facile depuis n'importe quel appareil sur votre réseau local.
+   *   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
+###    Protection Réseau avec AdGuard Home
 ## Aperçu de l'Interface
 
 L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
