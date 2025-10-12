@@ -1,0 +1,22 @@
+{
+  "echeveria": [
+    2,
+    5
+  ],
+  "sansevieria": [
+    1,
+    1
+  ],
+  "succulente": [
+    2,
+    5
+  ],
+  "ficus": [
+    1,
+    2
+  ],
+  "pothos": [
+    1,
+    3
+  ]
+}

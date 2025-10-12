@@ -3,321 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tableau de bord - Raspberry Pi</title>
-  
+  <title>Tableau de bord - RaspiHome</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
-  
   <style>
-    /* ---- VARIABLES CSS POUR LES THÈMES ---- */
-    :root {
-      /* Thème Clair (par défaut) */
-      --primary-color: #007bff;
-      --background-color: #f4f7f9;
-      --card-bg-color: #ffffff;
-      --text-color: #212529;
-      --text-color-light: #6c757d;
-      --border-color: #e9ecef;
-      --shadow: 0 4px 12px rgba(0,0,0,0.06);
-    }
-
-    body.dark-mode {
-      /* Thème Sombre */
-      --primary-color: #00aaff;
-      --background-color: #121212;
-      --card-bg-color: #1e1e1e;
-      --text-color: #e9ecef;
-      --text-color-light: #adb5bd;
-      --border-color: #333;
-      --shadow: 0 4px 15px rgba(0,0,0,0.25);
-    }
-
-    /* ---- DÉFINITION DES ANIMATIONS ---- */
-    @keyframes fadeInSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse-loader { 0%, 100% { background-color: rgba(108, 117, 125, 0.1); } 50% { background-color: rgba(108, 117, 125, 0.2); } }
-    @keyframes icon-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-
-    /* ---- STYLE DE BASE ---- */
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      background-color: var(--background-color);
-      color: var(--text-color);
-      transition: background-color 0.3s, color 0.3s;
-    }
-
-    .top-bar { height: 4px; width: 100%; background: #212529; }
-    body.dark-mode .top-bar { background: #121212; }
-
-    .container { max-width: 900px; margin: 2em auto; padding: 0 2em; }
-
-    /* ---- INTERRUPTEUR DE THÈME ---- */
-    .theme-switcher {
-        position: fixed; top: 20px; right: 20px; width: 45px; height: 45px;
-        border-radius: 50%; background-color: var(--card-bg-color);
-        box-shadow: var(--shadow); display: flex; justify-content: center;
-        align-items: center; cursor: pointer; z-index: 1000;
-        transition: transform 0.3s ease, background-color 0.3s;
-    }
-    .theme-switcher:hover { transform: rotate(45deg); }
-    .theme-switcher i { font-size: 1.4em; color: var(--primary-color); }
-
-    /* ---- TITRES ---- */
-    h1, h2 {
-      font-weight: 600; display: flex; align-items: center; gap: 12px;
-    }
-    h1 { font-size: 2em; margin: 1.5em 0; }
-    h2 { font-size: 1.25em; margin: 2.5em 0 1em 0; }
-    h1 i, h2 i { 
-      color: var(--primary-color);
-      animation: icon-pulse 2s infinite ease-in-out;
-    }
-
-    /* ---- SECTION DONNÉES ACTUELLES (CARDS) ---- */
-    #current-data-container {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 20px;
-    }
-    .data-card {
-      background: var(--card-bg-color); padding: 1.5em; border-radius: 12px;
-      box-shadow: var(--shadow); transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s;
-      opacity: 0; animation: fadeInSlideUp 0.5s ease-out forwards;
-    }
-    .data-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-    .data-card .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5em; color: var(--text-color-light); }
-    .data-card .card-header i { font-size: 1.1em; color: var(--primary-color); transition: transform 0.3s; }
-    .data-card:hover .card-header i { transform: scale(1.2); }
-    .data-card .value { font-size: 2em; font-weight: 600; color: var(--primary-color); }
-    .data-card .value.loading {
-        min-height: 38px; border-radius: 5px; animation: pulse-loader 1.5s infinite;
-        color: transparent;
-    }
-    .data-card:nth-child(1) { animation-delay: 0.1s; }
-    .data-card:nth-child(2) { animation-delay: 0.2s; }
-    .data-card:nth-child(3) { animation-delay: 0.3s; }
-    .data-card:nth-child(4) { animation-delay: 0.4s; }
-
-    /* ---- SECTIONS GÉNÉRIQUES (Carte pour le graphique et les plantes) ---- */
-    .card {
-        background: var(--card-bg-color); border-radius: 12px;
-        box-shadow: var(--shadow); padding: 2em;
-        opacity: 0; animation: fadeInSlideUp 0.6s ease-out forwards;
-        transition: background-color 0.3s;
-    }
-    label { font-weight: 500; color: var(--text-color-light); margin-right: 10px; }
-    select { 
-      padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); 
-      background-color: var(--background-color); color: var(--text-color); 
-      transition: background-color 0.3s, border-color 0.3s;
-    }
-    
-    #plant-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-    .plant { background: var(--card-bg-color); padding: 1.5em; border-radius: 12px; border: 1px solid var(--border-color); }
-    .plant.due { border-left: 5px solid #d9534f; background-color: rgba(217, 83, 79, 0.1); }
-    .plant h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
-    .plant button {
-      background-color: #28a745; color: white; border: none; padding: 10px 20px;
-      border-radius: 8px; cursor: pointer; font-size: 1em;
-      transition: background-color 0.3s; width: 100%; margin-top: 1em;
-    }
-    .plant button:hover { background-color: #218838; }
+    :root {--primary-color:#007bff;--background-color:#f4f7f9;--card-bg-color:#ffffff;--text-color:#212529;--text-color-light:#6c757d;--border-color:#e9ecef;--shadow:0 4px 12px rgba(0,0,0,0.06);}
+    body.dark-mode {--primary-color:#00aaff;--background-color:#121212;--card-bg-color:#1e1e1e;--text-color:#e9ecef;--text-color-light:#adb5bd;--border-color:#333;--shadow:0 4px 15px rgba(0,0,0,0.25);}
+    @keyframes fadeInSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:var(--background-color);color:var(--text-color);transition:background-color .3s,color .3s}
+    .container{max-width:900px;margin:2em auto;padding:0 2em}
+    .theme-switcher{position:fixed;top:20px;right:20px;width:45px;height:45px;border-radius:50%;background-color:var(--card-bg-color);box-shadow:var(--shadow);display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:1000;transition:transform .3s ease,background-color .3s}
+    .theme-switcher:hover{transform:rotate(45deg)}.theme-switcher i{font-size:1.4em;color:var(--primary-color)}
+    h1,h2{font-weight:600;display:flex;align-items:center;gap:12px}h1{font-size:2em;margin:1.5em 0}h2{font-size:1.25em;margin:2.5em 0 1em 0}h1 i,h2 i{color:var(--primary-color)}
+    #current-data-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px}
+    .data-card{background:var(--card-bg-color);padding:1.5em;border-radius:12px;box-shadow:var(--shadow);opacity:0;animation:fadeInSlideUp .5s ease-out forwards}
+    .data-card .card-header{display:flex;align-items:center;gap:10px;margin-bottom:.5em;color:var(--text-color-light)}
+    .data-card .value{font-size:2em;font-weight:600;color:var(--primary-color)}
+    .data-card.loading .value{min-height:38px;border-radius:5px;background-color:rgba(108,117,125,.1);color:transparent}
+    .data-card:nth-child(1){animation-delay:.1s}.data-card:nth-child(2){animation-delay:.2s}.data-card:nth-child(3){animation-delay:.3s}.data-card:nth-child(4){animation-delay:.4s}
+    .card{background:var(--card-bg-color);border-radius:12px;box-shadow:var(--shadow);padding:2em;opacity:0;animation:fadeInSlideUp .6s ease-out forwards;transition:background-color .3s}
+    label{font-weight:500;color:var(--text-color-light);margin-bottom:5px;display:block}
+    select,input{padding:10px 12px;border-radius:8px;border:1px solid var(--border-color);background-color:var(--background-color);color:var(--text-color);transition:background-color .3s,border-color .3s;box-sizing:border-box;font-size:1em;width:100%}
+    button[type=submit]{color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:1em;font-weight:500;transition:opacity .3s}
+    button[type=submit]:hover{opacity:.85}
+    #plant-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+    .plant{background:var(--card-bg-color);padding:1.5em;border-radius:12px;border:1px solid var(--border-color)}
+    .plant.due{border-left:5px solid #d9534f;background-color:rgba(217,83,79,.07)}
+    .plant h3{margin-top:0;display:flex;align-items:center;gap:10px}
+    .plant button{background-color:#28a745;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:1em;transition:background-color .3s;width:100%;margin-top:1em}
+    .plant button:hover{background-color:#218838}
+    .inline-form{display:flex;flex-wrap:wrap;gap:15px;align-items:flex-end}
+    .inline-form>div{flex:1 1 auto;min-width:150px}
+    .inline-form button{flex-shrink:0}
   </style>
 </head>
 <body>
-
-  <div class="top-bar"></div>
-
-  <div class="theme-switcher" id="theme-switcher" title="Changer de thème">
-    <i class="fa-solid fa-gear"></i>
-  </div>
-
+  <div class="theme-switcher" id="theme-switcher" title="Changer de thème"><i class="fa-solid fa-gear"></i></div>
   <div class="container">
-    <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord - Raspberry Pi</h1>
-
+    <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord - RaspiHome</h1>
     <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo en Temps Réel</h2>
     <div id="current-data-container">
-        <div class="data-card" id="temp-card">
-            <div class="card-header"><i class="fa-solid fa-temperature-half"></i><span class="label">Température</span></div>
-            <div class="value loading">...</div>
-        </div>
-        <div class="data-card" id="heat-card">
-            <div class="card-header"><i class="fa-solid fa-sun"></i><span class="label">Ressentie</span></div>
-            <div class="value loading">...</div>
-        </div>
-        <div class="data-card" id="hum-card">
-            <div class="card-header"><i class="fa-solid fa-droplet"></i><span class="label">Humidité</span></div>
-            <div class="value loading">...</div>
-        </div>
-        <div class="data-card" id="pres-card">
-            <div class="card-header"><i class="fa-solid fa-gauge-high"></i><span class="label">Pression</span></div>
-            <div class="value loading">...</div>
-        </div>
+      <div class="data-card loading" id="temp-card"><div class="card-header"><i class="fa-solid fa-temperature-half"></i><span>Température</span></div><div class="value">...</div></div>
+      <div class="data-card loading" id="heat-card"><div class="card-header"><i class="fa-solid fa-sun"></i><span>Ressentie</span></div><div class="value">...</div></div>
+      <div class="data-card loading" id="hum-card"><div class="card-header"><i class="fa-solid fa-droplet"></i><span>Humidité</span></div><div class="value">...</div></div>
+      <div class="data-card loading" id="pres-card"><div class="card-header"><i class="fa-solid fa-gauge-high"></i><span>Pression</span></div><div class="value">...</div></div>
     </div>
-
     <h2><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
     <div class="card" style="animation-delay: 0.5s;">
       <label for="period">Choisir la période :</label>
       <select id="period">
-        <option value="hour">Dernière heure</option>
-        <option value="12hours">Dernières 12 heures</option>
-        <option value="day" selected>Dernier jour</option>
-        <option value="week">Dernière semaine</option>
-        <option value="month">Dernier mois</option>
-        <option value="year">Dernière année</option>
+        <option value="hour">Dernière heure</option><option value="12hours">Dernières 12 heures</option><option value="day" selected>Dernier jour</option>
+        <option value="week">Dernière semaine</option><option value="month">Dernier mois</option><option value="year">Dernière année</option>
       </select>
       <canvas id="myChart" style="margin-top: 1.5em;"></canvas>
     </div>
-
-    <h2><i class="fa-solid fa-seedling"></i> Entretien des Plantes</h2>
-    <div class="card" id="plant-container-wrapper" style="animation-delay: 0.6s;">
-      <div id="plant-container">
-          <!-- Le contenu des plantes sera chargé ici par JavaScript -->
-      </div>
+    <h2><i class="fa-solid fa-seedling"></i> Vos Plantes</h2>
+    <div class="card" id="plant-container-wrapper" style="animation-delay: 0.6s;"><div id="plant-container"></div></div>
+    <h2><i class="fa-solid fa-wrench"></i> Gestion des Plantes</h2>
+    <div class="card" style="animation-delay: 0s;">
+      <h3 style="margin-top:0; font-size: 1.1em; color: var(--text-color-light);">Ajouter une plante</h3>
+      <form id="add-plant-form" class="inline-form">
+        <div><label for="plant-name">Nom personnalisé</label><input type="text" id="plant-name" placeholder="Ex: Ficus du salon" required></div>
+        <div><label for="plant-type">Type de plante</label><select id="plant-type" required></select></div>
+        <button type="submit" style="background-color: var(--primary-color);">Ajouter</button>
+      </form>
+      <hr style="border: none; border-top: 1px solid var(--border-color); margin: 2em 0;">
+      <h3 style="margin-top:0; font-size: 1.1em; color: var(--text-color-light);">Créer ou Modifier un type</h3>
+      <form id="add-type-form" class="inline-form">
+        <div><label for="type-name">Nom du type</label><input type="text" id="type-name" placeholder="Ex: Orchidée" required></div>
+        <div><label for="summer-weeks">Arrosage Été (sem.)</label><input type="number" id="summer-weeks" min="1" required placeholder="Ex: 1"></div>
+        <div><label for="winter-weeks">Arrosage Hiver (sem.)</label><input type="number" id="winter-weeks" min="1" required placeholder="Ex: 3"></div>
+        <button type="submit" style="background-color: #6c757d;">Sauvegarder</button>
+      </form>
     </div>
   </div>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // --- CODE JAVASCRIPT FINAL ET ROBUSTE ---
-
     let chart;
-
-    async function loadCurrentData() {
-      const valueElements = {
-        temp: document.querySelector('#temp-card .value'),
-        heat: document.querySelector('#heat-card .value'),
-        hum: document.querySelector('#hum-card .value'),
-        pres: document.querySelector('#pres-card .value')
-      };
-      Object.values(valueElements).forEach(el => el.classList.add('loading'));
-      try {
-        const response = await fetch('/alldata');
-        if (!response.ok) { throw new Error(`Erreur réseau: ${response.status}`); }
-        const data = await response.json();
-        valueElements.temp.textContent = `${data.temperature}°C`;
-        valueElements.heat.textContent = `${data.heat_index}°C`;
-        valueElements.hum.textContent = `${data.humidite}%`;
-        valueElements.pres.textContent = `${data.pression} hPa`;
-      } catch (error) {
-        console.error("Erreur de chargement des données météo:", error);
-        Object.values(valueElements).forEach(el => el.textContent = 'Erreur');
-      } finally {
-        Object.values(valueElements).forEach(el => el.classList.remove('loading'));
-      }
-    }
-
-    async function updateChart() {
-      try {
-        const period = document.getElementById('period').value;
-        const response = await fetch(`/history?period=${period}`);
-        if (!response.ok) { throw new Error(`Erreur réseau: ${response.status}`); }
-        const data = await response.json();
-        const datasets = [
-          { label: 'Température (°C)', data: data.temp, borderColor: '#ff6384', yAxisID: 'y', pointRadius: 0, pointHoverRadius: 5 },
-          { label: 'Ressentie (°C)', data: data.heat_index, borderColor: '#ff9f40', yAxisID: 'y', pointRadius: 0, pointHoverRadius: 5 },
-          { label: 'Humidité (%)', data: data.hum, borderColor: '#36a2eb', yAxisID: 'y', pointRadius: 0, pointHoverRadius: 5 },
-          { label: 'Pression (hPa)', data: data.pres, borderColor: '#4bc0c0', yAxisID: 'y1', pointRadius: 0, pointHoverRadius: 5 }
-        ];
-        
-        const ctx = document.getElementById('myChart');
-        if (!ctx) { throw new Error("L'élément Canvas 'myChart' est introuvable !"); }
-
-        if (chart) { chart.destroy(); }
-
-        chart = new Chart(ctx, {
-          type: 'line', data: { labels: data.datetime, datasets: datasets },
-          options: { 
-            responsive: true, 
-            interaction: { mode: 'index', intersect: false },
-            scales: { 
-              x: { title: { display: true, text: 'Heure' } }, 
-              y: { position: 'left', title: { display: true, text: '°C / %' } }, 
-              y1: { position: 'right', title: { display: true, text: 'hPa' }, grid: { drawOnChartArea: false } } 
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour du graphique:", error);
-      }
-    }
-    
-    async function loadPlantData() {
-        try {
-            const response = await fetch('/plants');
-            if (!response.ok) { throw new Error(`Erreur réseau: ${response.status}`); }
-            const plants = await response.json();
-            const container = document.getElementById('plant-container');
-            if (!container) { throw new Error("L'élément conteneur '#plant-container' est introuvable !"); }
-            
-            container.innerHTML = ''; 
-            if (Object.keys(plants).length === 0) {
-              container.innerHTML = "<p>Aucune plante à entretenir pour le moment.</p>";
-              return;
-            }
-            for (const key in plants) {
-                const plant = plants[key];
-                const plantDiv = document.createElement('div');
-                plantDiv.className = `plant ${plant.is_due ? 'due' : ''}`;
-                let content = `<h3><i class="fa-solid fa-leaf"></i> ${plant.nom}</h3><p>Prochain arrosage : <strong>${plant.status}</strong></p>`;
-                if (plant.is_due) {
-                    content += `<button onclick="confirmWatering('${key}')">Marquer comme arrosé</button>`;
-                }
-                plantDiv.innerHTML = content;
-                container.appendChild(plantDiv);
-            }
-        } catch(error) {
-            console.error("Erreur de chargement des données des plantes:", error);
-            const container = document.getElementById('plant-container');
-            if (container) {
-                container.innerHTML = "<p>Impossible de charger les données des plantes.</p>";
-            }
-        }
-    }
-
-    async function confirmWatering(plantKey) {
-        try {
-            await fetch(`/watered/${plantKey}`, { method: 'POST' });
-            loadPlantData();
-        } catch (error) {
-            console.error(`Erreur lors de la confirmation d'arrosage pour ${plantKey}:`, error);
-        }
-    }
-
-    // --- LOGIQUE DU THÈME SOMBRE ---
-    try {
-        const themeSwitcher = document.getElementById('theme-switcher');
-        const body = document.body;
-        function applyTheme(theme) { body.classList.toggle('dark-mode', theme === 'dark'); }
-        themeSwitcher.addEventListener('click', () => {
-            const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
-            applyTheme(newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    } catch(error) {
-        console.error("Erreur lors de l'initialisation du thème:", error);
-    }
-
-    // --- INITIALISATION DE LA PAGE ---
-    document.addEventListener('DOMContentLoaded', () => {
-      try {
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
-
-        loadCurrentData();
-        updateChart();
-        loadPlantData();
-
-        setInterval(loadCurrentData, 60000);
-        setInterval(loadPlantData, 300000);
-        
-        const periodSelector = document.getElementById('period');
-        if (!periodSelector) { throw new Error("Le sélecteur de période #period est introuvable !"); }
-        periodSelector.addEventListener('change', updateChart);
-      } catch(error) {
-        console.error("Erreur grave lors de l'initialisation de la page (DOMContentLoaded):", error);
-      }
-    });
+    let allPlantRules = {};
+    async function loadCurrentData(){const v={t:document.querySelector('#temp-card'),h:document.querySelector('#heat-card'),u:document.querySelector('#hum-card'),p:document.querySelector('#pres-card')};try{const r=await fetch('/alldata');if(!r.ok)throw new Error(r.status);const d=await r.json();v.t.querySelector('.value').textContent=`${d.temperature}°C`;v.h.querySelector('.value').textContent=`${d.heat_index}°C`;v.u.querySelector('.value').textContent=`${d.humidite}%`;v.p.querySelector('.value').textContent=`${d.pression} hPa`}catch(e){Object.values(v).forEach(c=>c.querySelector('.value').textContent='Erreur')}finally{Object.values(v).forEach(c=>c.classList.remove('loading'))}}
+    async function updateChart(){try{const p=document.getElementById('period').value;const r=await fetch(`/history?period=${p}`);if(!r.ok)throw new Error(r.status);const d=await r.json();const c=document.getElementById('myChart');if(chart)chart.destroy();chart=new Chart(c,{type:'line',data:{labels:d.datetime,datasets:[{label:'Température (°C)',data:d.temp,borderColor:'#ff6384',yAxisID:'y'},{label:'Ressentie (°C)',data:d.heat_index,borderColor:'#ff9f40',yAxisID:'y'},{label:'Humidité (%)',data:d.hum,borderColor:'#36a2eb',yAxisID:'y'},{label:'Pression (hPa)',data:d.pres,borderColor:'#4bc0c0',yAxisID:'y1'}]},options:{responsive:true,interaction:{mode:'index',intersect:false},elements:{point:{radius:0,hoverRadius:5}},scales:{y:{position:'left',title:{display:true,text:'°C / %'}},y1:{position:'right',title:{display:true,text:'hPa'},grid:{drawOnChartArea:false}}}}})}catch(e){console.error(e)}}
+    async function loadPlantData(){try{const r=await fetch('/plants');if(!r.ok)throw new Error(r.status);const p=await r.json();const c=document.getElementById('plant-container');c.innerHTML='';if(Object.keys(p).length===0){c.innerHTML="<p>Aucune plante. Ajoutez-en une ci-dessous !</p>";return}for(const k in p){const l=p[k];const d=document.createElement('div');d.className=`plant ${l.is_due?'due':''}`;d.innerHTML=`<h3><i class="fa-solid fa-leaf"></i> ${l.nom}</h3><p>Prochain arrosage : <strong>${l.status}</strong></p>`+(l.is_due?`<button onclick="confirmWatering('${k}')">Marquer comme arrosé</button>`:'');c.appendChild(d)}}catch(e){document.getElementById('plant-container').innerHTML="<p>Impossible de charger les données.</p>"}}
+    async function confirmWatering(k){try{await fetch(`/watered/${k}`,{method:'POST'});loadPlantData()}catch(e){console.error(e)}}
+    async function loadPlantRules(){try{const r=await fetch('/plant_rules');if(!r.ok)throw new Error('!');allPlantRules=await r.json()}catch(e){console.error(e)}}
+    async function populatePlantTypes(){try{const r=await fetch('/plant_types');if(!r.ok)throw new Error('!');const t=await r.json();const s=document.getElementById('plant-type');s.innerHTML='<option value="">-- Choisir --</option>';t.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p.charAt(0).toUpperCase()+p.slice(1);s.appendChild(o)})}catch(e){console.error(e)}}
+    async function handleAddPlant(e){e.preventDefault();const n=document.getElementById('plant-name'),t=document.getElementById('plant-type');try{const r=await fetch('/add_plant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom:n.value,type:t.value})});const s=await r.json();if(!r.ok)throw new Error(s.message||'!');n.value='';t.selectedIndex=0;loadPlantData()}catch(r){alert(`Erreur: ${r.message}`)}}
+    async function handleAddPlantType(e){e.preventDefault();const n=document.getElementById('type-name'),s=document.getElementById('summer-weeks'),w=document.getElementById('winter-weeks');const d={type_name:n.value,summer_weeks:s.value,winter_weeks:w.value};try{const r=await fetch('/add_plant_type',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});const t=await r.json();if(!r.ok)throw new Error(t.message||'!');n.value='';s.value='';w.value='';await Promise.all([populatePlantTypes(),loadPlantRules()]);alert(`Type "${d.type_name}" sauvegardé!`)}catch(r){console.error(r);alert(`Erreur: ${r.message}`)}}
+    document.addEventListener('DOMContentLoaded',async()=>{const t=document.getElementById('theme-switcher'),e=document.body;const a=t=>e.classList.toggle('dark-mode',t==='dark');t.addEventListener('click',()=>{const t=e.classList.contains('dark-mode')?'light':'dark';a(t);localStorage.setItem('theme',t)});const n=localStorage.getItem('theme'),o=window.matchMedia('(prefers-color-scheme: dark)').matches;a(n||(o?'dark':'light'));await loadPlantRules();loadCurrentData();updateChart();loadPlantData();populatePlantTypes();setInterval(loadCurrentData,60000);setInterval(loadPlantData,300000);document.getElementById('period').addEventListener('change',updateChart);document.getElementById('add-plant-form').addEventListener('submit',handleAddPlant);document.getElementById('add-type-form').addEventListener('submit',handleAddPlantType);document.getElementById('type-name').addEventListener('input',e=>{const t=e.target.value.toLowerCase().trim().replace(/ /g,'_'),a=document.getElementById('summer-weeks'),n=document.getElementById('winter-weeks');if(allPlantRules[t]){a.value=allPlantRules[t][0];n.value=allPlantRules[t][1]}})});
   </script>
 </body>
 </html>
