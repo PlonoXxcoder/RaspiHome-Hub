@@ -44,7 +44,7 @@ L'interface a été conçue pour être propre, lisible et agréable à utiliser,
 
 | Thème Clair | Thème Sombre |
 | :---: | :---: |
-| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot.png) |
+| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V2.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V2.png) |
 
 ## Architecture Technique v2.0
 
