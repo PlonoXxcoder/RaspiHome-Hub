@@ -149,7 +149,7 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
 
 - **[ ] v1.1 : Améliorations de l'Interface et des données**
     - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
-    - [ ] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
+    - [X] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
     - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
     - [ ] Ajouter une fonction de suppression de plante directement depuis l'interface.
     - [ ] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
