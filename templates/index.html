@@ -11,12 +11,18 @@
     body.dark-mode {--primary-color:#00aaff;--background-color:#121212;--card-bg-color:#1e1e1e;--text-color:#e9ecef;--text-color-light:#adb5bd;--border-color:#333;--shadow:0 4px 15px rgba(0,0,0,0.25);}
     @keyframes fadeInSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:var(--background-color);color:var(--text-color);transition:background-color .3s,color .3s}
     .container{max-width:900px;margin:2em auto;padding:0 2em}
     .theme-switcher{position:fixed;top:20px;right:20px;width:45px;height:45px;border-radius:50%;background-color:var(--card-bg-color);box-shadow:var(--shadow);display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:1000;transition:transform .3s ease,background-color .3s}
     .theme-switcher:hover{transform:rotate(45deg)}.theme-switcher i{font-size:1.4em;color:var(--primary-color)}
     h1,h2{font-weight:600;display:flex;align-items:center;gap:12px}h1{font-size:2em;margin:1.5em 0}h2{font-size:1.25em;margin:2.5em 0 1em 0}h1 i,h2 i{color:var(--primary-color)}
-    #current-data-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px}
+    
+    .section-header { display: flex; justify-content: space-between; align-items: center; }
+    .section-header h2 { margin-bottom: 0; }
+
+    #current-data-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px; margin-top: 1em;}
     .data-card{background:var(--card-bg-color);padding:1.5em;border-radius:12px;box-shadow:var(--shadow);opacity:0;animation:fadeInSlideUp .5s ease-out forwards}
     .data-card .card-header{display:flex;align-items:center;gap:10px;margin-bottom:.5em;color:var(--text-color-light)}
     .data-card .value{font-size:2em;font-weight:600;color:var(--primary-color)}
@@ -24,13 +30,14 @@
     .card{background:var(--card-bg-color);border-radius:12px;box-shadow:var(--shadow);padding:2em;opacity:0;animation:fadeInSlideUp .6s ease-out forwards;transition:background-color .3s}
     label{font-weight:500;color:var(--text-color-light);margin-bottom:5px;display:block}
     select,input{padding:10px 12px;border-radius:8px;border:1px solid var(--border-color);background-color:var(--background-color);color:var(--text-color);transition:background-color .3s,border-color .3s;box-sizing:border-box;font-size:1em;width:100%}
-    button[type=submit]{color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:1em;font-weight:500;transition:opacity .3s,background-color .3s}
+    button{cursor:pointer}
+    button[type=submit]{color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:1em;font-weight:500;transition:opacity .3s,background-color .3s}
     button[type=submit]:hover{opacity:.85}
     #plant-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
     .plant{background:var(--card-bg-color);padding:1.5em;border-radius:12px;border:1px solid var(--border-color)}
     .plant.due{border-left:5px solid #d9534f;background-color:rgba(217,83,79,.07)}
     .plant h3{margin-top:0;display:flex;align-items:center;gap:10px}
-    .plant button{background-color:#28a745;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:1em;transition:background-color .3s;width:100%;margin-top:1em}
+    .plant button{background-color:#28a745;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:1em;transition:background-color .3s;width:100%;margin-top:1em}
     .plant button:hover{background-color:#218838}
     .inline-form{display:flex;flex-wrap:wrap;gap:15px;align-items:flex-end}
     .inline-form>div{flex:1 1 auto;min-width:150px}
@@ -46,11 +53,15 @@
     .modal-content li{margin-bottom:1em;line-height:1.5}
     .plant-type-tag{font-size:.8em;font-weight:500;color:var(--text-color-light);background:var(--background-color);padding:4px 8px;border-radius:6px;cursor:pointer;transition:background-color .3s,color .3s}
     .plant-type-tag:hover{background-color:var(--primary-color);color:#fff}
+    #refresh-weather-btn{background:0 0;border:none;color:var(--text-color-light);font-size:1.2em;padding:5px;border-radius:50%;width:35px;height:35px;line-height:1;transition:color .3s,background-color .3s}
+    #refresh-weather-btn:hover{color:var(--primary-color);background-color:var(--background-color)}
+    #refresh-weather-btn.loading i{animation:spin 1s linear infinite}
+    #refresh-weather-btn:disabled{cursor:not-allowed;opacity:.5}
   </style>
 </head>
 <body>
   <div class="theme-switcher" id="theme-switcher" title="Changer de thème"><i class="fa-solid fa-gear"></i></div>
-
+  
   <div class="modal-overlay" id="tips-modal">
     <div class="modal-content">
       <span class="modal-close" id="modal-close-btn">&times;</span>
@@ -61,13 +72,18 @@
 
   <div class="container">
     <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord - RaspiHome</h1>
-    <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo en Temps Réel</h2>
+    
+    <div class="section-header">
+      <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo en Temps Réel</h2>
+      <button id="refresh-weather-btn" title="Rafraîchir les données maintenant"><i class="fa-solid fa-rotate-right"></i></button>
+    </div>
     <div id="current-data-container">
       <div class="data-card loading" id="temp-card"><div class="card-header"><i class="fa-solid fa-temperature-half"></i><span>Température</span></div><div class="value">...</div></div>
       <div class="data-card loading" id="heat-card"><div class="card-header"><i class="fa-solid fa-sun"></i><span>Ressentie</span></div><div class="value">...</div></div>
       <div class="data-card loading" id="hum-card"><div class="card-header"><i class="fa-solid fa-droplet"></i><span>Humidité</span></div><div class="value">...</div></div>
       <div class="data-card loading" id="pres-card"><div class="card-header"><i class="fa-solid fa-gauge-high"></i><span>Pression</span></div><div class="value">...</div></div>
     </div>
+
     <h2><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
     <div class="card" style="animation-delay: 0.5s;">
       <label for="period">Choisir la période :</label>
@@ -105,68 +121,18 @@
     let allPlantRules = {};
     let duePlantTipIndex = 0;
 
-    async function loadPlantData() {
-        const duePlantTypes = new Set();
-        try {
-            const response = await fetch('/plants'); if (!response.ok) throw new Error(`Erreur: ${response.status}`);
-            const plants = await response.json(); const container = document.getElementById('plant-container'); container.innerHTML = '';
-            if (Object.keys(plants).length === 0) {
-                container.innerHTML = "<p>Aucune plante. Ajoutez-en une ci-dessous !</p>";
-            } else {
-                for (const key in plants) {
-                    const plant = plants[key];
-                    if (plant.is_due) duePlantTypes.add(plant.type);
-                    const plantDiv = document.createElement('div');
-                    plantDiv.className = `plant ${plant.is_due ? 'due' : ''}`;
-                    const displayName = plant.type.charAt(0).toUpperCase() + plant.type.slice(1);
-                    let content = `<h3><i class="fa-solid fa-leaf"></i> ${plant.nom}</h3>`;
-                    content += `<p style="margin-top:-10px; margin-bottom: 20px;"><span class="plant-type-tag" onclick="showTipsFor('${plant.type}')">${displayName}</span></p>`;
-                    content += `<p>Prochain arrosage : <strong>${plant.status}</strong></p>`;
-                    if (plant.is_due) content += `<button onclick="confirmWatering('${key}')">Marquer comme arrosé</button>`;
-                    plantDiv.innerHTML = content;
-                    container.appendChild(plantDiv);
-                }
-            }
-        } catch(error) {
-            document.getElementById('plant-container').innerHTML = "<p>Impossible de charger les données des plantes.</p>";
-        }
-        return Array.from(duePlantTypes);
-    }
-
-    async function showTipsFor(plantType) {
-        const modal = document.getElementById('tips-modal');
-        const title = document.getElementById('modal-title');
-        const list = document.getElementById('modal-tips-list');
-        const displayName = plantType.charAt(0).toUpperCase() + plantType.slice(1);
-        title.textContent = `Conseils pour ${displayName}`;
-        list.innerHTML = '<li>Chargement...</li>';
-        modal.style.display = 'flex';
-        try {
-            const promises = Array(5).fill().map(() => fetch(`/tip_for_type/${plantType}`));
-            const responses = await Promise.all(promises);
-            const tipsData = await Promise.all(responses.map(res => res.json()));
-            const uniqueTips = new Set(tipsData.map(data => data.tip));
-            list.innerHTML = '';
-            if (uniqueTips.size > 0) {
-                uniqueTips.forEach(tip => {
-                    const li = document.createElement('li');
-                    li.textContent = tip;
-                    list.appendChild(li);
-                });
-            } else { list.innerHTML = "<li>Aucun conseil spécifique trouvé.</li>"; }
-        } catch (error) { list.innerHTML = "<li>Impossible de charger les conseils.</li>"; }
-    }
-
+    async function loadCurrentData(){const v={t:document.querySelector('#temp-card'),h:document.querySelector('#heat-card'),u:document.querySelector('#hum-card'),p:document.querySelector('#pres-card')};Object.values(v).forEach(c=>c.classList.add('loading'));try{const r=await fetch('/alldata');if(!r.ok)throw new Error(r.status);const d=await r.json();v.t.querySelector('.value').textContent=`${d.temperature}°C`;v.h.querySelector('.value').textContent=`${d.heat_index}°C`;v.u.querySelector('.value').textContent=`${d.humidite}%`;v.p.querySelector('.value').textContent=`${d.pression} hPa`}catch(e){Object.values(v).forEach(c=>c.querySelector('.value').textContent='Erreur')}finally{Object.values(v).forEach(c=>c.classList.remove('loading'))}}
+    async function updateChart(){try{const p=document.getElementById('period').value;const r=await fetch(`/history?period=${p}`);if(!r.ok)throw new Error(r.status);const d=await r.json();const c=document.getElementById('myChart');if(chart)chart.destroy();chart=new Chart(c,{type:'line',data:{labels:d.datetime,datasets:[{label:'Température (°C)',data:d.temp,borderColor:'#ff6384',yAxisID:'y'},{label:'Ressentie (°C)',data:d.heat_index,borderColor:'#ff9f40',yAxisID:'y'},{label:'Humidité (%)',data:d.hum,borderColor:'#36a2eb',yAxisID:'y'},{label:'Pression (hPa)',data:d.pres,borderColor:'#4bc0c0',yAxisID:'y1'}]},options:{responsive:true,interaction:{mode:'index',intersect:false},elements:{point:{radius:0,hoverRadius:5}},scales:{y:{position:'left',title:{display:true,text:'°C / %'}},y1:{position:'right',title:{display:true,text:'hPa'},grid:{drawOnChartArea:false}}}}})}catch(e){console.error(e)}}
+    async function loadPlantData(){const d=new Set;try{const r=await fetch('/plants');if(!r.ok)throw new Error(r.status);const p=await r.json();const c=document.getElementById('plant-container');c.innerHTML='';if(Object.keys(p).length===0)c.innerHTML="<p>Aucune plante. Ajoutez-en une ci-dessous !</p>";else for(const k in p){const l=p[k];if(l.is_due)d.add(l.type);const t=document.createElement('div');t.className=`plant ${l.is_due?'due':''}`;const a=l.type.charAt(0).toUpperCase()+l.type.slice(1);let o=`<h3><i class="fa-solid fa-leaf"></i> ${l.nom}</h3>`;o+=`<p style="margin-top:-10px; margin-bottom: 20px;"><span class="plant-type-tag" onclick="showTipsFor('${l.type}')">${a}</span></p>`;o+=`<p>Prochain arrosage : <strong>${l.status}</strong></p>`;if(l.is_due)o+=`<button onclick="confirmWatering('${k}')">Marquer comme arrosé</button>`;t.innerHTML=o;c.appendChild(t)}}catch(e){document.getElementById('plant-container').innerHTML="<p>Impossible de charger les données.</p>"}return Array.from(d)}
+    async function showTipsFor(p){const t=document.getElementById('tips-modal'),e=document.getElementById('modal-title'),n=document.getElementById('modal-tips-list'),a=p.charAt(0).toUpperCase()+p.slice(1);e.textContent=`Conseils pour ${a}`;n.innerHTML='<li>Chargement...</li>';t.style.display='flex';try{const o=Array(5).fill().map(()=>fetch(`/tip_for_type/${p}`)),l=await Promise.all(o),c=await Promise.all(l.map(r=>r.json())),s=new Set(c.map(d=>d.tip));n.innerHTML='';if(s.size>0)s.forEach(i=>{const m=document.createElement('li');m.textContent=i;n.appendChild(m)});else n.innerHTML="<li>Aucun conseil spécifique trouvé.</li>"}catch(o){n.innerHTML="<li>Impossible de charger les conseils.</li>"}}
     async function confirmWatering(k){try{await fetch(`/watered/${k}`,{method:'POST'});const d=await loadPlantData();await updateSmartTip(d)}catch(e){console.error(e)}}
     async function updateSmartTip(d=[]){const t=document.getElementById('plant-tip');if(!t)return;let e='/tips';if(d.length>0){const n=d[duePlantTipIndex];e=`/tip_for_type/${n}`;duePlantTipIndex=(duePlantTipIndex+1)%d.length}try{t.classList.add('fade-out');const n=await fetch(e);if(!n.ok)throw new Error('!');const a=await n.json();setTimeout(()=>{t.innerHTML=`<strong>${a.category}:</strong> ${a.tip}`;t.classList.remove('fade-out')},500)}catch(n){t.textContent="Impossible de charger les astuces.";t.classList.remove('fade-out')}}
     async function loadPlantRules(){try{const r=await fetch('/plant_rules');if(!r.ok)throw new Error('!');allPlantRules=await r.json()}catch(e){console.error(e)}}
     async function populatePlantTypes(){try{const r=await fetch('/plant_types');if(!r.ok)throw new Error('!');const t=await r.json();const s=document.getElementById('plant-type'),d=document.getElementById('plant-type-list');s.innerHTML='<option value="">-- Choisir --</option>';d.innerHTML='';t.forEach(p=>{const e=p.charAt(0).toUpperCase()+p.slice(1),o=document.createElement('option');o.value=p;o.textContent=e;s.appendChild(o);const i=document.createElement('option');i.value=e;d.appendChild(i)})}catch(e){console.error(e)}}
     async function handleAddPlant(e){e.preventDefault();const n=document.getElementById('plant-name'),t=document.getElementById('plant-type');try{const r=await fetch('/add_plant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom:n.value,type:t.value})});const s=await r.json();if(!r.ok)throw new Error(s.message||'!');n.value='';t.selectedIndex=0;loadPlantData()}catch(r){alert(`Erreur: ${r.message}`)}}
     async function handleManagePlantType(e){e.preventDefault();const n=document.getElementById('type-search-name'),t=document.getElementById('summer-weeks'),a=document.getElementById('winter-weeks');const o={type_name:n.value,summer_weeks:t.value,winter_weeks:a.value};try{const i=await fetch('/add_plant_type',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});const s=await i.json();if(!i.ok)throw new Error(s.message||'!');n.value='';t.value='';a.value='';await Promise.all([populatePlantTypes(),loadPlantRules()]);alert(`Type "${o.type_name}" sauvegardé!`)}catch(i){console.error(i);alert(`Erreur: ${i.message}`)}}
-    async function loadCurrentData(){const v={t:document.querySelector('#temp-card'),h:document.querySelector('#heat-card'),u:document.querySelector('#hum-card'),p:document.querySelector('#pres-card')};try{const r=await fetch('/alldata');if(!r.ok)throw new Error(r.status);const d=await r.json();v.t.querySelector('.value').textContent=`${d.temperature}°C`;v.h.querySelector('.value').textContent=`${d.heat_index}°C`;v.u.querySelector('.value').textContent=`${d.humidite}%`;v.p.querySelector('.value').textContent=`${d.pression} hPa`}catch(e){Object.values(v).forEach(c=>c.querySelector('.value').textContent='Erreur')}finally{Object.values(v).forEach(c=>c.classList.remove('loading'))}}
-    async function updateChart(){try{const p=document.getElementById('period').value;const r=await fetch(`/history?period=${p}`);if(!r.ok)throw new Error(r.status);const d=await r.json();const c=document.getElementById('myChart');if(chart)chart.destroy();chart=new Chart(c,{type:'line',data:{labels:d.datetime,datasets:[{label:'Température (°C)',data:d.temp,borderColor:'#ff6384',yAxisID:'y'},{label:'Ressentie (°C)',data:d.heat_index,borderColor:'#ff9f40',yAxisID:'y'},{label:'Humidité (%)',data:d.hum,borderColor:'#36a2eb',yAxisID:'y'},{label:'Pression (hPa)',data:d.pres,borderColor:'#4bc0c0',yAxisID:'y1'}]},options:{responsive:true,interaction:{mode:'index',intersect:false},elements:{point:{radius:0,hoverRadius:5}},scales:{y:{position:'left',title:{display:true,text:'°C / %'}},y1:{position:'right',title:{display:true,text:'hPa'},grid:{drawOnChartArea:false}}}}})}catch(e){console.error(e)}}
 
-    document.addEventListener('DOMContentLoaded',async()=>{const t=document.getElementById('theme-switcher'),e=document.body;const n=t=>e.classList.toggle('dark-mode',t==='dark');t.addEventListener('click',()=>{const t=e.classList.contains('dark-mode')?'light':'dark';n(t);localStorage.setItem('theme',t)});const a=localStorage.getItem('theme'),o=window.matchMedia('(prefers-color-scheme: dark)').matches;n(a||(o?'dark':'light'));const i=document.getElementById('tips-modal'),s=document.getElementById('modal-close-btn');s.addEventListener('click',()=>i.style.display='none');i.addEventListener('click',t=>{if(t.target===i)i.style.display='none'});await loadPlantRules();loadCurrentData();updateChart();populatePlantTypes();const l=async()=>{const d=await loadPlantData();await updateSmartTip(d)};l();setInterval(l,15000);setInterval(loadCurrentData,60000);document.getElementById('period').addEventListener('change',updateChart);document.getElementById('add-plant-form').addEventListener('submit',handleAddPlant);document.getElementById('manage-type-form').addEventListener('submit',handleManagePlantType);const d=document.getElementById('type-search-name'),r=document.getElementById('manage-type-btn'),c=document.getElementById('summer-weeks'),m=document.getElementById('winter-weeks');d.addEventListener('input',e=>{const n=e.target.value.toLowerCase().trim().replace(/ /g,'_'),a=allPlantRules[n];if(a){c.value=a[0];m.value=a[1];r.textContent='Modifier';r.style.backgroundColor='#ffc107'}else{c.value='';m.value='';r.textContent='Créer';r.style.backgroundColor='#6c757d'}})});
+    document.addEventListener('DOMContentLoaded',async()=>{const t=document.getElementById('theme-switcher'),e=document.body;const n=t=>e.classList.toggle('dark-mode',t==='dark');t.addEventListener('click',()=>{const t=e.classList.contains('dark-mode')?'light':'dark';n(t);localStorage.setItem('theme',t)});const a=localStorage.getItem('theme'),o=window.matchMedia('(prefers-color-scheme: dark)').matches;n(a||(o?'dark':'light'));const i=document.getElementById('tips-modal'),s=document.getElementById('modal-close-btn');s.addEventListener('click',()=>i.style.display='none');i.addEventListener('click',t=>{if(t.target===i)i.style.display='none'});const l=document.getElementById('refresh-weather-btn');l.addEventListener('click',async()=>{l.disabled=true;l.classList.add('loading');await loadCurrentData();setTimeout(()=>{l.classList.remove('loading');l.disabled=false},500)});await loadPlantRules();loadCurrentData();updateChart();populatePlantTypes();const d=async()=>{const c=await loadPlantData();await updateSmartTip(c)};d();setInterval(d,15000);setInterval(loadCurrentData,60000);document.getElementById('period').addEventListener('change',updateChart);document.getElementById('add-plant-form').addEventListener('submit',handleAddPlant);document.getElementById('manage-type-form').addEventListener('submit',handleManagePlantType);const r=document.getElementById('type-search-name'),c=document.getElementById('manage-type-btn'),m=document.getElementById('summer-weeks'),u=document.getElementById('winter-weeks');r.addEventListener('input',e=>{const n=e.target.value.toLowerCase().trim().replace(/ /g,'_'),a=allPlantRules[n];if(a){m.value=a[0];u.value=a[1];c.textContent='Modifier';c.style.backgroundColor='#ffc107'}else{m.value='';u.value='';c.textContent='Créer';c.style.backgroundColor='#6c757d'}})});
   </script>
 </body>
 </html>
