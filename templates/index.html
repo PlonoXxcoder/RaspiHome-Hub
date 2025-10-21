@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tableau de bord - RaspiHome</title>
+<<<<<<< HEAD
 
     <!-- NOUVELLE POLICE DE CARACTÈRES (GOOGLE FONTS) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -61,6 +62,27 @@
         <div class="section-header">
             <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo</h2>
             <button id="refresh-weather-btn" title="Rafraîchir les données"><i class="fa-solid fa-rotate-right"></i></button>
+=======
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <!-- Lien vers le fichier CSS dans le même dossier 'templates' -->
+    <link rel="stylesheet" href="/templates/style.css">
+</head>
+<body>
+    <div class="theme-switcher" id="theme-switcher" title="Changer de thème"><i class="fa-solid fa-gear"></i></div>
+    <div class="modal-overlay" id="tips-modal">
+        <div class="modal-content">
+            <span class="modal-close" id="modal-close-btn">&times;</span>
+            <h3 id="modal-title">Conseils d'entretien</h3>
+            <ul id="modal-tips-list"></ul>
+        </div>
+    </div>
+    <div class="container">
+        <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord - RaspiHome</h1>
+        <div class="section-header">
+            <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo en Temps Réel</h2>
+            <button id="refresh-weather-btn" title="Rafraîchir les données maintenant"><i class="fa-solid fa-rotate-right"></i></button>
+>>>>>>> 2e7f75f72088d2b101e2f1fbcb083d346956a5a0
         </div>
         <div class="card">
             <ul id="current-weather-list">
@@ -70,6 +92,7 @@
                 <li class="weather-item"><i class="fa-solid fa-gauge-high"></i> Pression: <span id="weather-pres" class="value">...</span></li>
             </ul>
         </div>
+<<<<<<< HEAD
 
         <h2><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
         <div class="card">
@@ -128,5 +151,40 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Le script est maintenant un module pour permettre l'import/export -->
     <script src="/templates/main.js" type="module"></script>
+=======
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
+        <div class="card">
+            <label for="period">Choisir la période :</label>
+            <select id="period"><option value="hour">Dernière heure</option><option value="12hours">Dernières 12 heures</option><option value="day" selected>Dernier jour</option><option value="week">Dernière semaine</option><option value="month">Dernier mois</option><option value="year">Dernière année</option></select>
+            <canvas id="myChart" style="margin-top: 1.5em;"></canvas>
+        </div>
+        <h2><i class="fa-solid fa-seedling"></i> Vos Plantes</h2>
+        <div class="card" id="plant-container-wrapper"><div id="plant-container"></div></div>
+        <h2><i class="fa-solid fa-wrench"></i> Gestion des Plantes</h2>
+        <div class="card">
+            <h3 style="margin-top:0;font-size:1.1em;color:var(--text-color-light)">Ajouter une plante</h3>
+            <form id="add-plant-form" class="inline-form">
+                <div><label for="plant-name">Nom personnalisé</label><input type="text" id="plant-name" placeholder="Ex: Ficus du salon" required></div>
+                <div><label for="plant-type">Type de plante</label><select id="plant-type" required></select></div>
+                <button type="submit" style="background-color:var(--primary-color)">Ajouter</button>
+            </form>
+            <hr style="border:none;border-top:1px solid var(--border-color);margin:2em 0">
+            <h3 style="margin-top:0;font-size:1.1em;color:var(--text-color-light)">Gérer un type de plante</h3>
+            <form id="manage-type-form" class="inline-form">
+                <div><label for="type-search-name">Chercher ou créer un type</label><input type="text" id="type-search-name" placeholder="Ex: Monstera" required list="plant-type-list"><datalist id="plant-type-list"></datalist></div>
+                <div><label for="summer-weeks">Arrosage Été (sem.)</label><input type="number" id="summer-weeks" min="1" required placeholder="Ex: 1"></div>
+                <div><label for="winter-weeks">Arrosage Hiver (sem.)</label><input type="number" id="winter-weeks" min="1" required placeholder="Ex: 3"></div>
+                <button type="submit" id="manage-type-btn" style="background-color:#6c757d">Créer</button>
+            </form>
+        </div>
+        <h2><i class="fa-solid fa-lightbulb"></i> Astuce du Jour</h2>
+        <div class="card">
+            <div id="plant-tip-container"><p id="plant-tip">Chargement...</p></div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lien vers le fichier JavaScript dans le même dossier 'templates' -->
+    <script src="/templates/script.js"></script>
+>>>>>>> 2e7f75f72088d2b101e2f1fbcb083d346956a5a0
 </body>
 </html>
