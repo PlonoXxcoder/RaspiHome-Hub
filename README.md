@@ -109,7 +109,6 @@ Le passage à la version 2.0 modernise l'architecture de stockage pour plus de r
     ```
 
 ### Étape 2 : Installation d'AdGuard Home
-*(Instructions à ajouter)*
 
 ## Guide d'Utilisation
 
@@ -142,7 +141,7 @@ Toute la gestion se fait désormais via l'interface web, dans la section "Gestio
 ├── requirements.txt     # Dépendances Python
 ├── serveur_temp.py      # Script principal (Backend Flask & Logique)
 └── .gitignore           # Fichiers à ignorer par Git``
-
+```
 ## Personnalisation Avancée
 
 Ouvrez `serveur_temp.py` pour modifier :
