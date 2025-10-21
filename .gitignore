@@ -1,2 +1,15 @@
-data.csv
-__pycache__/
+  # Fichiers de données générés
+    *.db
+    *.csv
+    
+    # Environnement virtuel Python
+    venv/
+    
+    # Fichiers de configuration locaux (contenant des secrets)
+    config.py
+    
+    # Fichiers système et cache
+    __pycache__/
+    *.pyc
+    .DS_Store
+    ```

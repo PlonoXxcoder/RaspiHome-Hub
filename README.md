@@ -1,130 +1,135 @@
-# RaspiWeatherPlant : Station Météo & Gardien de Plantes sur Raspberry Pi
+# RaspiHome Hub v2.0 : Météo, Jardinage Intelligent et Protection Réseau
 
-<img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
+<p align="center">
+  <img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
+</p>
 
-**RaspiWeatherPlant** transforme votre Raspberry Pi équipé d'un Sense HAT en un centre de contrôle environnemental intelligent. Ce projet offre une station météo complète accessible via une interface web et un assistant de jardinage proactif qui vous rappelle quand arroser vos plantes grâce à des alertes visuelles sur la matrice LED.
+**RaspiHome Hub** transforme votre Raspberry Pi en un serveur domestique multi-fonctions. Ce projet combine une station météo complète et un assistant de jardinage proactif avec un puissant bloqueur de publicités et de traqueurs pour tout votre réseau domestique grâce à AdGuard Home.
 
 ## Table des Matières
 - [Fonctionnalités Clés](#fonctionnalités-clés)
 - [Aperçu de l'Interface](#aperçu-de-linterface)
-- [Architecture Technique](#architecture-technique)
+- [Architecture Technique v2.0](#architecture-technique-v20)
 - [Prérequis](#prérequis)
-  - [Matériel](#matériel)
-  - [Logiciel](#logiciel)
 - [Installation Facile](#installation-facile)
 - [Guide d'Utilisation](#guide-dutilisation)
-  - [Démarrage du Serveur](#démarrage-du-serveur)
-  - [Configuration des Plantes](#configuration-des-plantes)
 - [Structure du Projet](#structure-du-projet)
 - [Personnalisation Avancée](#personnalisation-avancée)
 - [Feuille de Route et Idées Futures](#feuille-de-route-et-idées-futures)
-  - [🚀 Prochaines Étapes (Feuille de Route)](#-prochaines-étapes-feuille-de-route)
-  - [💡 Idées pour l'Avenir](#-idées-pour-lavenir)
 - [Contribuer](#contribuer)
 - [Licence](#licence)
 
 ## Fonctionnalités Clés
-
+### Station Météo & Jardinage Intelligent
 *   📊 **Dashboard Météo en Temps Réel** : Affiche la température, l'humidité, la pression et un **indice de chaleur** calculé selon la formule de la NOAA.
-*   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, 12 heures, jour, semaine, mois et année.
-*   💧 **Assistant de Jardinage Intelligent** :
-    *   Définit des cycles d'arrosage personnalisés pour chaque plante, avec des intervalles différents pour l'été et l'hiver.
-    *   Génère des **alertes visuelles** sur la matrice LED du Sense HAT lorsqu'une plante a soif.
-    *   Permet de confirmer l'arrosage via l'interface web ou directement avec le **joystick du Sense HAT**.
+*   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, jour, semaine, mois et année.
+*   🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels pour un confort de lecture optimal, de jour comme de nuit. Le choix est mémorisé.
+*   💧 **Assistant de Jardinage Proactif** :
+    *   **Base de Données de Plantes Centralisée** : Gère des centaines de types de plantes avec des règles d'arrosage personnalisées (été/hiver) dans une base de données **SQLite**.
+    *   **Gestion Complète via l'Interface** : Plus besoin d'éditer des fichiers ! Recherchez, modifiez et créez de nouveaux types de plantes directement depuis le dashboard.
+    *   **Conseils d'Entretien Contextuels** : Affiche une astuce aléatoire qui se focalise sur les plantes ayant besoin d'être arrosées.
+    *   **Pop-up d'Informations** : Cliquez sur le type d'une de vos plantes pour obtenir une liste de conseils d'entretien spécifiques.
+    *   **Importateur de Données via API** : Un script dédié permet d'enrichir la base de données de plantes en se connectant à l'API [Perenual](https://perenual.com/api/).
 *   🌐 **Interface Web Intuitive** : Une application web légère et responsive construite avec Flask pour un accès facile depuis n'importe quel appareil sur votre réseau local.
 *   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
 
+### Protection Réseau avec AdGuard Home
+*   ⛔ **Blocage des Publicités et Traqueurs** : Filtre le contenu indésirable sur tous les appareils de votre réseau.
+*   🕵️ **Surveillance du Trafic** : Accédez à un tableau de bord détaillé pour voir les requêtes DNS.
+*   🔒 **Sécurité Améliorée** : Protège contre les sites de phishing et de logiciels malveillants.
+
 ## Aperçu de l'Interface
 
+L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
 
-**Exemple de Dashboard :**
-![Aperçu du Dashboard RaspiWeatherPlant](assets/dashboard-screenshot.png)
-**Alerte sur le Sense HAT :**
+| Thème Clair | Thème Sombre |
+| :---: | :---: |
+| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V2.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V2.png) |
 
-## Architecture Technique
+## Architecture Technique v2.0
 
-Le système repose sur une architecture simple mais robuste :
+Le passage à la version 2.0 modernise l'architecture de stockage pour plus de robustesse et de performance :
 
-1.  **Capteurs (Sense HAT)** : Collecte en continu les données de température, d'humidité et de pression.
+1.  **Capteurs (Sense HAT)** : Collecte en continu les données environnementales.
 2.  **Script Python (`serveur_temp.py`)** :
-    *   **Enregistrement** : Un thread dédié sauvegarde les données des capteurs toutes les 5 minutes dans un fichier `data.csv`.
-    *   **Gestion des Plantes** : Un second thread vérifie périodiquement (entre 18h et 21h) si une plante a besoin d'être arrosée en se basant sur les règles définies et la date du dernier arrosage stockée dans `plants.json`.
-    *   **Serveur Web (Flask)** : Expose plusieurs points d'API (`routes`) pour servir les données en temps réel, l'historique et l'état des plantes à l'interface web.
-3.  **Stockage** :
-    *   `data.csv` : Stocke l'historique des mesures environnementales.
-    *   `plants.json` : Contient la configuration de vos plantes et la date de leur dernier arrosage.
-4.  **Interface Utilisateur (HTML/JavaScript)** : Une page web unique (`index.html`) qui interroge les API du serveur Flask pour afficher les données et les graphiques de manière dynamique.
+    *   **Enregistrement Météo** : Un thread dédié sauvegarde les données des capteurs dans `data.csv`.
+    *   **Gestion des Plantes** : La logique métier interroge désormais la base de données SQLite pour déterminer les besoins d'arrosage.
+    *   **Serveur Web (Flask)** : Expose plusieurs API pour servir les données en temps réel, l'historique et les informations sur les plantes depuis la base de données.
+3.  **Stockage Centralisé** :
+    *   **`raspihome.db` (SQLite)** : Une base de données unique et performante qui remplace les anciens fichiers `.json`. Elle contient trois tables :
+        *   `plants` : La liste de vos plantes personnelles (ex: "Le ficus du salon").
+        *   `plant_rules` : L'encyclopédie des types de plantes et de leurs règles d'arrosage.
+        *   `tips` : La collection de conseils d'entretien.
+    *   `data.csv` : Conserve le stockage de l'historique des mesures environnementales.
+4.  **Interface Utilisateur (HTML/JavaScript)** : Une page web unique (`index.html`) qui interroge les API du serveur Flask pour afficher les données de manière dynamique.
+5.  **Service de Filtrage DNS (AdGuard Home)** : Un service autonome qui protège l'ensemble du réseau.
 
 ## Prérequis
 
 ### Matériel
-
-*   Un Raspberry Pi (j'utilise un modele 1)
+*   Un Raspberry Pi (testé sur un modèle 1 B+)
 *   Une carte d'extension [Sense HAT](https://www.raspberrypi.com/products/sense-hat/)
-*   Une alimentation électrique fiable
-*   Une carte microSD avec Raspberry Pi OS installé (j'utilise une carte Sandisk 64 Go)
+*   Une alimentation électrique fiable et une carte microSD.
 
 ### Logiciel
-
-*   Python 3.x
-*   Git (pour cloner le dépôt)
-*   Les bibliothèques Python listées dans `requirements.txt`.
+*   Python 3.x et Git.
+*   Les bibliothèques Python listées dans `requirements.txt` (Flask, sense-hat, pandas).
+*   La bibliothèque `requests` pour l'importateur API (`sudo apt-get install python3-requests`).
+*   Une installation d'AdGuard Home.
 
 ## Installation Facile
 
-Suivez ces étapes sur le terminal de votre Raspberry Pi :
+### Étape 1 : Installation de la Station Météo
 
 1.  **Mettre à jour le système** :
     ```bash
     sudo apt update && sudo apt upgrade -y
     ```
-
 2.  **Cloner ce dépôt** :
     ```bash
-    git clone [URL_DE_VOTRE_DEPOT_GITHUB]
-    cd RaspiWeatherPlant 
+    git clone https://github.com/PlonoXxcoder/RaspiHome-Hub.git
+    cd RaspiHome-Hub
     ```
-
-3.  **Installer les dépendances Python** :
+3.  **Installer les dépendances système et Python** :
     ```bash
+    sudo apt-get install python3-requests
     pip3 install -r requirements.txt
     ```
-    Cela installera automatiquement `Flask`, `sense-hat` et `pandas`.
+4.  **Initialiser la base de données** : Le script crée le fichier `raspihome.db` et le remplit avec une base de connaissance initiale.
+    ```bash
+    python3 database_setup.py
+    ```
+
+### Étape 2 : Installation d'AdGuard Home
+*(Instructions à ajouter)*
 
 ## Guide d'Utilisation
 
 ### Démarrage du Serveur
-
-1.  **Trouvez l'adresse IP de votre Raspberry Pi** :
-    ```bash
-    hostname -I
-    ```
-
-2.  **Lancez l'application** depuis le dossier du projet :
+1.  **Lancez l'application** depuis le dossier du projet :
     ```bash
     python3 serveur_temp.py
     ```
+2.  **Accédez à l'interface web** en utilisant l'adresse IP de votre Raspberry Pi, sur le port 5000 (ou 5001 si vous êtes en mode test) : `http://<VOTRE_ADRESSE_IP>:5000`
 
-3.  **Accédez à l'interface web** : Ouvrez un navigateur sur votre ordinateur ou smartphone et entrez l'adresse suivante :
-    `http://<VOTRE_ADRESSE_IP>:5000`
-
-### Configuration des Plantes
-
-1.  **Ouvrez le fichier `plants.json`** : `nano plants.json`
-2.  **Modifiez le fichier** pour y inclure vos plantes, en spécifiant un `nom` et la date du `last_watered` (format `AAAA-MM-JJ`).
-    ```json
-    {
-      "echeveria": { "nom": "Echeveria", "last_watered": "2024-08-15" }
-    }
-    ```
+### Gérer les Plantes
+Toute la gestion se fait désormais via l'interface web, dans la section "Gestion des Plantes" :
+*   **Ajouter une plante personnelle** : Donnez-lui un nom, choisissez son type dans la liste déroulante et cliquez sur "Ajouter".
+*   **Gérer les types de plantes** :
+    *   **Modifier** : Commencez à taper le nom d'un type existant. Les champs se rempliront automatiquement. Modifiez les valeurs et cliquez sur "Modifier".
+    *   **Créer** : Tapez un nouveau nom, remplissez les semaines d'arrosage et cliquez sur "Créer".
 
 ## Structure du Projet
 ```.
-├── serveur_temp.py      # Script principal
-├── requirements.txt     # Dépendances Python
-├── plants.json          # Configuration des plantes
-└── templates/
-    └── index.html       # Interface web
+├── assets/                  # Images pour le README
+├── templates/
+│   └── index.html           # Interface web (HTML, CSS, JS)
+├── serveur_temp.py          # Script principal (Backend Flask & Logique)
+├── raspihome.db             # Base de données SQLite
+├── requirements.txt         # Dépendances Python
+├── database_setup.py        # Script pour créer et remplir la base de données
+├── api_importer.py          # (Optionnel) Script pour importer des plantes via une API
+└── README.m
 ```
 
 ## Personnalisation Avancée
@@ -142,17 +147,24 @@ Ce projet a un grand potentiel d'évolution. Voici ce qui est prévu et ce qui p
 
 Voici les fonctionnalités sur lesquelles nous travaillons activement pour les prochaines versions :
 
-- **[ ] v1.1 : Améliorations de l'Interface**
-    - [ ] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
-    - [ ] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
-    - [ ] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
-
+- **[ ] v1.1 : Améliorations de l'Interface et des données**
+    - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
+    - [X] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
+    - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
+    - [ ] Ajouter une fonction de suppression de plante directement depuis l'interface.
+    - [ ] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
+          
+  
 - **[ ] v1.2 : Notifications Avancées**
     - [ ] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
     - [ ] Permettre de configurer des seuils d'alerte pour la température et l'humidité.
 
 - **[ ] v1.3 : Gestion des Plantes via l'UI**
-    - [ ] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
+    - [X] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
+    - [ ] Ajouter d'autres Raspberry afin de terminer chaque température et pression de chaque piece de la maison/appartement.
+    - [ ] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération
+
+
 
 ### 💡 Idées pour l'Avenir
 
