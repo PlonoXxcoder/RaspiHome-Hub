@@ -1,10 +1,10 @@
-# RaspiHome Hub v2.0 : Météo, Jardinage Intelligent et Protection Réseau
+# RaspiHome Hub v3.0 : Météo Hybride, Jardinage Intelligent et Protection Réseau
 
 <p align="center">
   <img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
 </p>
 
-**RaspiHome Hub** transforme votre Raspberry Pi en un serveur domestique multi-fonctions. Ce projet combine une station météo complète et un assistant de jardinage proactif avec un puissant bloqueur de publicités et de traqueurs pour tout votre réseau domestique grâce à AdGuard Home.
+**RaspiHome Hub** transforme votre Raspberry Pi en un serveur domestique complet. Cette version majeure intègre une **station météo hybride** (données extérieures via API et intérieures via capteurs), un **assistant de jardinage proactif** avec historique, et une **interface utilisateur entièrement modernisée**,  avec un puissant bloqueur de publicités et de traqueurs pour tout votre réseau domestique grâce à AdGuard Home.
 
 ## Table des Matières
 - [Fonctionnalités Clés](#fonctionnalités-clés)
@@ -22,6 +22,7 @@
 ## Fonctionnalités Clés
 ### Station Météo & Jardinage Intelligent
 *   📊 **Dashboard Météo en Temps Réel** : Affiche la température, l'humidité, la pression et un **indice de chaleur** calculé selon la formule de la NOAA.
+*   🌐 **Intégration d'une API Météo** : Affiche la météo extérieure de votre localisation exacte.
 *   📈 **Historique des Données** : Visualisez des graphiques dynamiques de l'évolution des conditions sur différentes périodes : heure, jour, semaine, mois et année.
 *   🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels pour un confort de lecture optimal, de jour comme de nuit. Le choix est mémorisé.
 *   💧 **Assistant de Jardinage Proactif** :
@@ -30,8 +31,16 @@
     *   **Conseils d'Entretien Contextuels** : Affiche une astuce aléatoire qui se focalise sur les plantes ayant besoin d'être arrosées.
     *   **Pop-up d'Informations** : Cliquez sur le type d'une de vos plantes pour obtenir une liste de conseils d'entretien spécifiques.
     *   **Importateur de Données via API** : Un script dédié permet d'enrichir la base de données de plantes en se connectant à l'API [Perenual](https://perenual.com/api/).
-*   🌐 **Interface Web Intuitive** : Une application web légère et responsive construite avec Flask pour un accès facile depuis n'importe quel appareil sur votre réseau local.
-*   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
+*  🎨 **Interface Utilisateur Moderne** :
+    *   Nouvelle palette de couleurs et police "Poppins" pour un design professionnel.
+    *   Interrupteur Jour/Nuit animé et mémorisé.
+    *   Animations douces, transitions et effets de survol améliorés.
+*   👆 **Fonctionnalités UX Avancées** :
+    *   Barre de recherche pour filtrer dynamiquement vos plantes.
+    *   Mode édition, historique et suppression directement sur les cartes de plantes.
+    *   Recommandations intelligentes basées sur la météo.
+*   🧩 **Code JavaScript Modulaire** : Le code frontend est maintenant éclaté en modules (`api.js`, `ui.js`, `main.js`) pour une meilleure maintenabilité.
+*   ⚙️ **Déploiement en tant que Service** : Le projet peut désormais tourner en continu grâce à un service `systemd`.*   ⚙️ **Fonctionnement Autonome** : Le script utilise des threads pour enregistrer les données et gérer les alertes en arrière-plan, sans interrompre le serveur web.
 
 ### Protection Réseau avec AdGuard Home
 *   ⛔ **Blocage des Publicités et Traqueurs** : Filtre le contenu indésirable sur tous les appareils de votre réseau.
@@ -40,7 +49,7 @@
 
 ## Aperçu de l'Interface
 
-L'interface a été conçue pour être propre, lisible et agréable à utiliser, avec un thème clair et un thème sombre.
+L'interface a été entièrement repensée pour être plus claire, plus esthétique et plus fonctionnelle.
 
 | Thème Clair | Thème Sombre |
 | :---: | :---: |
@@ -50,19 +59,18 @@ L'interface a été conçue pour être propre, lisible et agréable à utiliser,
 
 Le passage à la version 2.0 modernise l'architecture de stockage pour plus de robustesse et de performance :
 
-1.  **Capteurs (Sense HAT)** : Collecte en continu les données environnementales.
+1.  **Sources de Données** :
+    *   **API OpenWeatherMap** : Fournit les données météo extérieures en temps réel pour une localisation précise.
+    *   **Sense HAT** : Agit comme source de secours pour les données intérieures si l'API n'est pas disponible.
 2.  **Script Python (`serveur_temp.py`)** :
-    *   **Enregistrement Météo** : Un thread dédié sauvegarde les données des capteurs dans `data.csv`.
-    *   **Gestion des Plantes** : La logique métier interroge désormais la base de données SQLite pour déterminer les besoins d'arrosage.
-    *   **Serveur Web (Flask)** : Expose plusieurs API pour servir les données en temps réel, l'historique et les informations sur les plantes depuis la base de données.
-3.  **Stockage Centralisé** :
-    *   **`raspihome.db` (SQLite)** : Une base de données unique et performante qui remplace les anciens fichiers `.json`. Elle contient trois tables :
-        *   `plants` : La liste de vos plantes personnelles (ex: "Le ficus du salon").
-        *   `plant_rules` : L'encyclopédie des types de plantes et de leurs règles d'arrosage.
-        *   `tips` : La collection de conseils d'entretien.
-    *   `data.csv` : Conserve le stockage de l'historique des mesures environnementales.
-4.  **Interface Utilisateur (HTML/JavaScript)** : Une page web unique (`index.html`) qui interroge les API du serveur Flask pour afficher les données de manière dynamique.
-5.  **Service de Filtrage DNS (AdGuard Home)** : Un service autonome qui protège l'ensemble du réseau.
+    *   **Serveur Web (Flask)** : Expose de multiples routes API pour servir les données au frontend.
+3.  **Stockage Centralisé (SQLite)** :
+    *   **`raspihome.db`** : Une base de données unique qui stocke **toutes** les données : `plants`, `plant_rules`, `tips`, l'historique météo `sensor_readings`, et l'historique d'arrosage `watering_history`.
+4.  **Interface Utilisateur (Modulaire)** :
+    *   Une page web unique (`index.html`) et un CSS moderne (`style.css`).
+    *   Logique JavaScript éclatée en modules : `api.js` (communications), `ui.js` (interface), `main.js` (orchestration).
+5.  **Déploiement (`systemd`)** :
+    *   Le serveur Flask est géré comme un service système, garantissant un lancement automatique et un redémarrage en cas de problème.
 
 ## Prérequis
 
@@ -73,8 +81,8 @@ Le passage à la version 2.0 modernise l'architecture de stockage pour plus de r
 
 ### Logiciel
 *   Python 3.x et Git.
-*   Les bibliothèques Python listées dans `requirements.txt` (Flask, sense-hat, pandas).
-*   La bibliothèque `requests` pour l'importateur API (`sudo apt-get install python3-requests`).
+*   Un compte et une **clé d'API** du service [OpenWeatherMap](https://openweathermap.org/) (le plan gratuit est suffisant).
+*   Les bibliothèques Python listées dans `requirements.txt`.
 *   Une installation d'AdGuard Home.
 
 ## Installation Facile
@@ -121,16 +129,19 @@ Toute la gestion se fait désormais via l'interface web, dans la section "Gestio
 
 ## Structure du Projet
 ```.
-├── assets/                  # Images pour le README
 ├── templates/
-│   └── index.html           # Interface web (HTML, CSS, JS)
-├── serveur_temp.py          # Script principal (Backend Flask & Logique)
-├── raspihome.db             # Base de données SQLite
-├── requirements.txt         # Dépendances Python
-├── database_setup.py        # Script pour créer et remplir la base de données
-├── api_importer.py          # (Optionnel) Script pour importer des plantes via une API
-└── README.m
-```
+│   ├── api.js           # Module JS pour les communications avec le serveur
+│   ├── ui.js            # Module JS pour la manipulation de l'interface
+│   ├── main.js          # Module JS principal (orchestration)
+│   ├── index.html       # Structure de la page web
+│   └── style.css        # Styles de la page
+├── assets/              # Images pour le README
+├── config.py            # Fichier de configuration (clés API, coordonnées)
+├── database_setup.py    # Script d'initialisation de la base de données
+├── raspihome.service    # Fichier de configuration pour le service systemd
+├── requirements.txt     # Dépendances Python
+├── serveur_temp.py      # Script principal (Backend Flask & Logique)
+└── .gitignore           # Fichiers à ignorer par Git``
 
 ## Personnalisation Avancée
 
