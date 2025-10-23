@@ -163,11 +163,19 @@ def get_plant_statuses():
     plants = get_db().execute("SELECT p.id, p.name, p.type, p.last_watered, pr.summer_weeks, pr.winter_weeks FROM plants p JOIN plant_rules pr ON p.type = pr.name").fetchall()
     plant_list = []
     for plant in plants:
-        plant_dict = dict(plant); last_watered = datetime.strptime(plant['last_watered'], '%Y-%m-%d').date()
+        plant_dict = dict(plant)
+        last_watered = datetime.strptime(plant['last_watered'], '%Y-%m-%d').date()
         days_since = (date.today() - last_watered).days
+        
         interval_weeks = plant['summer_weeks'] if is_summer() else plant['winter_weeks']
         watering_interval_days = interval_weeks * 7
+        
         days_until = watering_interval_days - days_since
+        
+        # --- MODIFICATIONS ICI ---
+        plant_dict['days_until_watering'] = days_until  # On ajoute le nombre de jours
+        plant_dict['watering_interval'] = watering_interval_days # On ajoute l'intervalle total
+        
         plant_dict['is_due'] = days_until <= 0
         plant_dict['status'] = f"Dans {days_until} jours" if days_until > 0 else ("Aujourd'hui !" if days_until == 0 else "En retard")
         plant_list.append(plant_dict)

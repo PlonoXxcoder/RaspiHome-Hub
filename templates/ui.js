@@ -12,22 +12,87 @@ const DOMElements = {
     historyModalList: document.getElementById('history-modal-list'),
     recommendationIcon: document.getElementById('smart-recommendation-icon'),
     recommendationText: document.getElementById('smart-recommendation-text'),
+    recommendationCard: document.getElementById('smart-recommendation-card'),
 };
 
-/** Affiche ou met à jour les données météo en temps réel. */
-export async function updateWeatherData() {
-    try {
-        const data = await api.fetchCurrentData();
-        document.getElementById('weather-temp').textContent = `${data.temperature}°C`;
-        document.getElementById('weather-heat').textContent = `${data.heat_index}°C`;
-        document.getElementById('weather-hum').textContent = `${data.humidite}%`;
-        document.getElementById('weather-pres').textContent = `${data.pression} hPa`;
-    } catch (error) {
-        console.error("Impossible de mettre à jour la météo.");
+/**
+ * Choisit une couleur dans un dégradé en fonction du temps restant.
+ * Utilise les variables CSS pour s'adapter automatiquement au thème clair/sombre.
+ * @param {number} daysUntil - Jours restants avant l'arrosage.
+ * @param {number} totalInterval - L'intervalle total d'arrosage en jours.
+ * @returns {string} La couleur hexadécimale.
+ */
+function getWateringStatusColor(daysUntil, totalInterval) {
+    // Lit les valeurs des variables CSS directement depuis le document
+    const style = getComputedStyle(document.body);
+    const colors = {
+        safe:    style.getPropertyValue('--plant-color-safe').trim(),
+        soon:    style.getPropertyValue('--plant-color-soon').trim(),
+        due:     style.getPropertyValue('--plant-color-due').trim(),
+        overdue: style.getPropertyValue('--plant-color-overdue').trim()
+    };
+
+    // Définit les couleurs par défaut (pour le thème clair)
+    const defaults = {
+        safe: '#81C784',
+        soon: '#FFF176',
+        due: '#FFB74D',
+        overdue: '#E57373'
+    };
+
+    // Logique pour choisir la couleur
+    if (daysUntil <= 0) {
+        return colors.overdue || defaults.overdue;
+    }
+    if (totalInterval <= 1) {
+        return colors.safe || defaults.safe;
+    }
+    const percentage = (daysUntil / totalInterval) * 100;
+
+    if (percentage > 75) {
+        return colors.safe || defaults.safe;
+    } else if (percentage > 40) {
+        return colors.soon || defaults.soon;
+    } else if (percentage > 0) {
+        return colors.due || defaults.due;
+    } else {
+        return colors.overdue || defaults.overdue;
     }
 }
 
-/** Crée ou met à jour le graphique d'évolution. */
+/**
+ * Affiche ou met à jour les données météo en temps réel.
+ */
+export async function updateWeatherData() {
+    try {
+        const data = await api.fetchCurrentData();
+        document.getElementById('weather-temp').textContent = `${data.temperature.toFixed(2)}°C`;
+        document.getElementById('weather-heat').textContent = `${data.heat_index.toFixed(2)}°C`;
+        document.getElementById('weather-hum').textContent = `${data.humidite}%`;
+        document.getElementById('weather-pres').textContent = `${data.pression} hPa`;
+
+        const descriptionElement = document.getElementById('weather-description');
+        const iconElement = document.getElementById('weather-icon');
+        
+        if (data.description) {
+            descriptionElement.textContent = data.description;
+        }
+        if (data.icon) {
+            iconElement.src = `https://openweathermap.org/img/wn/${data.icon}@2x.png`;
+            iconElement.style.display = 'inline-block';
+        } else {
+            iconElement.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error("Impossible de mettre à jour la météo.");
+        document.getElementById('weather-description').textContent = "Erreur de connexion";
+    }
+}
+
+/**
+ * Crée ou met à jour le graphique d'évolution.
+ */
 export async function updateChart() {
     try {
         const period = document.getElementById('period').value;
@@ -56,18 +121,24 @@ export async function updateChart() {
     }
 }
 
-/** Affiche la recommandation intelligente en haut de page. */
+/**
+ * Affiche la recommandation intelligente en haut de page.
+ */
 export async function updateSmartRecommendation() {
     try {
         const data = await api.fetchSmartRecommendation();
         DOMElements.recommendationIcon.className = `fa-solid ${data.icon}`;
         DOMElements.recommendationText.innerHTML = data.message;
+        DOMElements.recommendationCard.classList.remove('error');
     } catch (error) {
         DOMElements.recommendationText.textContent = "Impossible de charger la recommandation.";
+        DOMElements.recommendationCard.classList.add('error');
     }
 }
 
-/** Crée et affiche les cartes des plantes. */
+/**
+ * Crée et affiche les cartes des plantes.
+ */
 export async function renderPlants() {
     try {
         const plants = await api.fetchPlants();
@@ -83,27 +154,36 @@ export async function renderPlants() {
             const plantCard = createPlantCard(plant);
             DOMElements.plantContainer.appendChild(plantCard);
         });
-        filterPlants(); // Applique le filtre de recherche
+        filterPlants();
     } catch (error) {
         DOMElements.plantContainer.innerHTML = '<p class="empty-state">Erreur lors du chargement des plantes.</p>';
     }
 }
 
-/** Crée l'élément HTML pour une seule carte de plante. */
+/**
+ * Crée l'élément HTML pour une seule carte de plante, avec la couleur dynamique.
+ */
 function createPlantCard(plant) {
     const card = document.createElement('div');
-    card.className = `plant ${plant.is_due ? 'due' : ''}`;
+    card.className = 'plant';
     card.dataset.plantId = plant.id;
     card.dataset.plantName = plant.name;
     card.dataset.plantType = plant.type;
 
+    const statusColor = getWateringStatusColor(plant.days_until_watering, plant.watering_interval);
+    
+    // Détermine la couleur du texte pour une meilleure lisibilité
+    const lightColors = ['#FFF176', '#FFB74D']; // Jaune et Orange clair
+    const isLight = lightColors.includes(statusColor.toUpperCase());
+    const textColor = isLight ? '#333' : 'white';
+
     card.innerHTML = `
-        <div class="plant-header">
+        <div class="plant-header" style="background-color: ${statusColor}; color: ${textColor};">
             <h3 class="plant-name-display"><i class="fa-solid fa-leaf"></i> ${plant.name}</h3>
             <div class="plant-actions">
-                <button class="action-btn edit-btn" title="Modifier"><i class="fa-solid fa-pencil"></i></button>
-                <button class="action-btn history-btn" title="Historique"><i class="fa-solid fa-clock-rotate-left"></i></button>
-                <button class="action-btn delete-btn" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                <button class="action-btn edit-btn" title="Modifier" style="color: ${textColor};"><i class="fa-solid fa-pencil"></i></button>
+                <button class="action-btn history-btn" title="Historique" style="color: ${textColor};"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                <button class="action-btn delete-btn" title="Supprimer" style="color: ${textColor};"><i class="fa-solid fa-trash"></i></button>
             </div>
         </div>
         <div class="plant-body">
@@ -117,7 +197,9 @@ function createPlantCard(plant) {
     return card;
 }
 
-/** Filtre les plantes affichées en fonction du texte dans la barre de recherche. */
+/**
+ * Filtre les plantes affichées en fonction du texte dans la barre de recherche.
+ */
 export function filterPlants() {
     const searchTerm = DOMElements.plantSearchInput.value.toLowerCase();
     const plantCards = DOMElements.plantContainer.querySelectorAll('.plant');
@@ -130,7 +212,9 @@ export function filterPlants() {
     });
 }
 
-/** Affiche la modale de l'historique d'arrosage pour une plante. */
+/**
+ * Affiche la modale de l'historique d'arrosage pour une plante.
+ */
 export async function showHistoryModal(plantId, plantName) {
     DOMElements.historyModalTitle.textContent = `Historique d'arrosage de ${plantName}`;
     DOMElements.historyModalList.innerHTML = '<li>Chargement...</li>';
@@ -154,7 +238,9 @@ export async function showHistoryModal(plantId, plantName) {
     }
 }
 
-/** Remplit les listes déroulantes des types de plantes. */
+/**
+ * Remplit les listes déroulantes des types de plantes.
+ */
 export async function populatePlantTypes() {
     try {
         const types = await api.fetchPlantTypes();

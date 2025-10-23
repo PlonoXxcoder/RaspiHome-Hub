@@ -1,0 +1,23 @@
+# Fichiers de configuration locaux contenant des secrets
+# Cette ligne est la plus importante pour la sécurité !
+config.py
+
+# Fichiers de données générés par l'application
+# Ne jamais versionner les bases de données ou les historiques.
+*.db
+*.csv
+*.log
+
+# Fichiers de sauvegarde de l'éditeur
+*.save
+
+# Environnement virtuel Python
+venv/
+.venv/
+
+# Fichiers de cache et binaires Python
+__pycache__/
+*.pyc
+
+# Fichiers système spécifiques à certains OS
+.DS_Store
