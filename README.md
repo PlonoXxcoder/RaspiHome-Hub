@@ -66,7 +66,7 @@ L'interface a été entièrement repensée pour être plus claire, plus esthéti
 | ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V3.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V3.png) |
 ---
 
-## Architecture Technique v4.0
+## Architecture Technique v3.0
 
 L'architecture a été revue pour intégrer des capteurs distants et une interactivité accrue.
 
@@ -165,20 +165,23 @@ Il est fortement recommandé d'utiliser le service `systemd` fourni.
 ## Structure du Projet
 
 ## Structure du Projet
-```.
+```
+RaspiHome-Hub/
 ├── templates/
-│   ├── api.js           # Module JS pour les communications avec le serveur
-│   ├── ui.js            # Module JS pour la manipulation de l'interface
-│   ├── main.js          # Module JS principal (orchestration)
-│   ├── index.html       # Structure de la page web
-│   └── style.css        # Styles de la page
-├── assets/              # Images pour le README
-├── config.py            # Fichier de configuration (clés API, coordonnées)
-├── database_setup.py    # Script d'initialisation de la base de données
-├── raspihome.service    # Fichier de configuration pour le service systemd
-├── requirements.txt     # Dépendances Python
-├── serveur_temp.py      # Script principal (Backend Flask & Logique)
-└── .gitignore           # Fichiers à ignorer par Git``
+│   ├── api.js
+│   ├── ui.js
+│   ├── main.js
+│   ├── index.html
+│   └── style.css
+├── esp32_firmware/      
+│   └── esp_client.ino   
+├── assets/
+├── config.py
+├── database_setup.py
+├── raspihome.service
+├── requirements.txt
+├── serveur_temp.py
+└── README.md
 ```
 ---
 
@@ -190,9 +193,34 @@ Il est fortement recommandé d'utiliser le service `systemd` fourni.
 
 ---
 
-## Feuille de Route et Idées Futures
+### Feuille de Route et Idées Futures
 
-### ✅ v4.0 (Terminé !)
+Ce projet a un grand potentiel d'évolution. Voici ce qui est prévu et ce qui pourrait être imaginé.
+
+### 🚀 Prochaines Étapes (Feuille de Route)
+
+Voici les fonctionnalités sur lesquelles nous travaillons activement pour les prochaines versions :
+
+- **[ ] v1.1 : Améliorations de l'Interface et des données**
+    - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
+    - [X] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
+    - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
+    - [X] Ajouter une fonction de suppression de plante directement depuis l'interface.
+    - [ ] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
+          
+  
+- **[ ] v1.2 : Notifications Avancées**
+    - [ ] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
+    - [ ] Permettre de configurer des seuils d'alerte pour la température et l'humidité.
+
+- **[ ] v1.3 : Gestion des Plantes via l'UI**
+    - [X] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
+    - [ ] Ajouter d'autres Raspberry afin de terminer chaque température et pression de chaque piece de la maison/appartement.
+    - [ ] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération
+
+- **[ ] v1.4 : Gestion des Plantes via l'UI**
+
+### ✅ v3.0 (Terminé !)
 - [X] **Intégration Capteur Distant** (ESP32) avec rafraîchissement à la demande.
 - [X] **Graphiques Interactifs** (Zoom, Pan, Points, Seuils, Zones Nuit/Jour).
 - [X] **Comparaison Météo Web** sur le graphique.
