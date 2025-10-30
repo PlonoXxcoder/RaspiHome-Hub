@@ -63,7 +63,7 @@ L'interface a été entièrement repensée pour être plus claire, plus esthéti
 
 | Thème Clair | Thème Sombre |
 | :---: | :---: |
-| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V2.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V2.png) |
+| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V3.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V3.png) |
 ---
 
 ## Architecture Technique v4.0
