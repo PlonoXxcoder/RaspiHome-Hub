@@ -1,9 +1,9 @@
 # Fichier : config.py
 
 # --- Configuration de l'API OpenWeatherMap ---
-API_KEY = "VOTRE_CLÉ_API_OPENWEATHERMAP_ICI"
-LATITUDE = "VOTRE_LATITUDE_ICI"
-LONGITUDE = "VOTRE_LONGITUDE_ICI"
+API_KEY = "8dbd4d933481de9de3f75887e2d6dabb"
+LATITUDE = "45.1846514"
+LONGITUDE = "5.7068809"
 
 # --- Configuration du Bot Telegram ---
 

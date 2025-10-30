@@ -13,3 +13,10 @@
     *.pyc
     .DS_Store
     ```
+
+# Fichiers locaux à ignorer
+config.py
+raspihome.db
+*.db-journal
+__pycache__/
+templates/index.htmlY
