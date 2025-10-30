@@ -10,7 +10,7 @@
 
 * [Fonctionnalités Clés](#fonctionnalités-clés)
 * [Aperçu de l'Interface](#aperçu-de-linterface)
-* [Architecture Technique v4.0](#architecture-technique-v40)
+* [Architecture Technique v3.0](#architecture-technique-v30)
 * [Prérequis](#prérequis)
 * [Installation Facile](#installation-facile)
 * [Guide d'Utilisation](#guide-dutilisation)
@@ -201,36 +201,35 @@ Ce projet a un grand potentiel d'évolution. Voici ce qui est prévu et ce qui p
 
 Voici les fonctionnalités sur lesquelles nous travaillons activement pour les prochaines versions :
 
-- **[ ] v1.1 : Améliorations de l'Interface et des données**
+- **[✅] v1.1 : Améliorations de l'Interface et des données**
     - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
     - [X] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
     - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
     - [X] Ajouter une fonction de suppression de plante directement depuis l'interface.
-    - [ ] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
+    - [X] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
           
   
-- **[ ] v1.2 : Notifications Avancées**
-    - [ ] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
+- **[✅] v1.2 : Notifications Avancées**
+    - [X] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
     - [ ] Permettre de configurer des seuils d'alerte pour la température et l'humidité.
 
 - **[ ] v1.3 : Gestion des Plantes via l'UI**
     - [X] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
-    - [ ] Ajouter d'autres Raspberry afin de terminer chaque température et pression de chaque piece de la maison/appartement.
-    - [ ] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération
+    - [X] Ajouter d'autres Raspberry ou Esp-32 afin de terminer chaque température et pression de chaque piece de la maison/appartement.
+    - [X] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération
 
-- **[ ] v1.4 : Gestion des Plantes via l'UI**
-
-### ✅ v3.0 (Terminé !)
-- [X] **Intégration Capteur Distant** (ESP32) avec rafraîchissement à la demande.
-- [X] **Graphiques Interactifs** (Zoom, Pan, Points, Seuils, Zones Nuit/Jour).
-- [X] **Comparaison Météo Web** sur le graphique.
-- [X] **Barre de Progression** d'arrosage pour les plantes.
-- [X] **Mode Édition Avancé** (Correction du layout + modification des intervalles d'arrosage).
-- [X] **Affichage "Dernière MàJ"** et codes couleurs sur les cartes météo.
-- [X] Migration de la DB vers un schéma `int_`/`ext_`.
+- **[✅ ] v1.4 : Hub IoT & Visualisation Avancée**
+   - [X] **Intégration Capteur Distant** (ESP32) avec rafraîchissement à la demande.
+   - [X] **Graphiques Interactifs** (Zoom, Pan, Points, Seuils, Zones Nuit/Jour).
+   - [X] **Comparaison Météo Web** sur le graphique.
+   - [X] **Barre de Progression** d'arrosage pour les plantes.
+   - [X] **Mode Édition Avancé** (Correction du layout + modification des intervalles d'arrosage).
+   - [X] **Affichage "Dernière MàJ"** et codes couleurs sur les cartes météo.
+   - [X] Migration de la DB vers un schéma `int_`/`ext_`.
+   - [ ]** Déploiement Fiable** : Remplacement du lancement manuel par un service systemd avec redémarrage automatique.
 
 ### 🚀 Prochaines Étapes
-- [ ] **Alertes Météo** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur).
+- [ ] **Alertes Météo avancées ** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur), en cas de dépassement (ex: "Alerte : Température intérieure trop élevée !").
 - [ ] **Page Historique Détaillée** : Créer une nouvelle page avec un sélecteur de dates (calendrier), un tableau de données triable et un bouton d'export CSV.
 - [ ] **Indicateurs Visuels** : Remplacer les pourcentages d'humidité par des **jauges circulaires** et ajouter des mini-graphiques "sparklines" dans les cartes météo.
 - [ ] **Contrôle Salle de Bain** : Objectif d'ajouter un capteur dans la SDB pour contrôler l'aération.
