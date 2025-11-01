@@ -1,4 +1,4 @@
-# RaspiHome Hub v4.0 : Météo Multi-Capteurs, Jardinage Intelligent et Protection Réseau
+# RaspiHome Hub v1.4 : Météo Multi-Capteurs, Jardinage Intelligent et Protection Réseau
 
 <p align="center">
   <img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
