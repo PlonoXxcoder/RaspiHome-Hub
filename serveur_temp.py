@@ -1,255 +1,285 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-
-import sqlite3
+import os
 import threading
 import time
-import math
-from datetime import datetime, date
-from flask import Flask, jsonify, render_template, request, g, send_from_directory
 import requests
-import config
+import random
+from datetime import datetime, timedelta, date
+from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
+from threading import Lock
 
-DB_FILE = 'raspihome.db'
-app = Flask(__name__)
+# --- 1. IMPORTS ET CONFIGURATION ---
+try:
+    import config
+except ImportError:
+    print("❌ ERREUR: Le fichier config.py est manquant.")
+    exit()
+
 try:
     from sense_hat import SenseHat
     sense = SenseHat()
-    sense.clear()
     print("✅ Sense HAT détecté.")
-except (OSError, IOError, ImportError):
-    print("⚠️ Sense HAT non détecté. Passage en mode simulation.")
-    class SenseHat:
-        def get_temperature(self): return 25.8
-        def get_humidity(self): return 45.2
-        def get_pressure(self): return 1012.5
-        def clear(self): pass
-    sense = SenseHat()
+except (ImportError, OSError):
+    sense = None
+    print("⚠️ AVERTISSEMENT: Sense HAT non détecté.")
 
-notified_today = set()
-last_check_day = date.today()
+app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, 'raspihome.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect(DB_FILE)
-        g.db.row_factory = sqlite3.Row
-    return g.db
+latest_sensor_data = {"weather": {}, "sensehat": {}, "esp32": {}}
+data_lock = Lock()
 
-@app.teardown_appcontext
-def close_db(exception):
-    db = g.pop('db', None)
-    if db is not None:
-        db.close()
+# ======================= 2. MODÈLES DE BASE DE DONNÉES (Adaptés à votre structure) =======================
+class PlantRule(db.Model):
+    __tablename__ = 'plant_rules'
+    name = db.Column(db.Text, primary_key=True)
+    summer_weeks = db.Column(db.Integer, nullable=False)
+    winter_weeks = db.Column(db.Integer, nullable=False)
 
-def is_summer():
-    return 4 <= date.today().month <= 9
+class Plant(db.Model):
+    __tablename__ = 'plants'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    type = db.Column(db.Text, db.ForeignKey('plant_rules.name'), nullable=False)
+    plant_rule = db.relationship('PlantRule', backref=db.backref('plants', lazy=True))
 
-def calculate_noaa_heat_index(temperature_c, humidity_percent):
-    T_f = (temperature_c * 9/5) + 32; RH = humidity_percent
-    if T_f < 80.0: return temperature_c
-    HI_f = -42.379 + 2.04901523*T_f + 10.14333127*RH - 0.22475541*T_f*RH - 6.83783e-3*T_f**2 - 5.481717e-2*RH**2 + 1.22874e-3*T_f**2*RH + 8.5282e-4*T_f*RH**2 - 1.99e-6*T_f**2*RH**2
-    if RH < 13 and 80 < T_f < 112: HI_f -= ((13 - RH) / 4) * math.sqrt((17 - abs(T_f - 95.0)) / 17)
-    if RH > 85 and 80 < T_f < 87: HI_f += ((RH - 85) / 10) * ((87 - T_f) / 5)
-    return round((HI_f - 32) * 5/9, 2)
+class WateringHistory(db.Model):
+    __tablename__ = 'watering_history'
+    id = db.Column(db.Integer, primary_key=True)
+    plant_id = db.Column(db.Integer, db.ForeignKey('plants.id'), nullable=False)
+    watering_date = db.Column(db.Date, nullable=False, default=date.today)
 
-def send_telegram_notification(message):
-    token = config.TELEGRAM_TOKEN
-    chat_id = config.TELEGRAM_CHAT_ID
-    if not all([token, chat_id]) or "VOTRE_" in token or "VOTRE_" in chat_id:
-        print("CONFIG MANQUANTE : Notification Telegram non envoyée.")
-        return
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML'}
+class SensorReading(db.Model):
+    __tablename__ = 'sensor_readings'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    source = db.Column(db.String(20))
+    temperature = db.Column(db.Float)
+    humidity = db.Column(db.Float)
+    pressure = db.Column(db.Float)
+
+class Tip(db.Model):
+    __tablename__ = 'tips'
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.Text)
+    tip = db.Column(db.Text)
+
+# ======================= 3. FONCTIONS UTILITAIRES =======================
+def get_season(month):
+    return 'winter' if month in (11, 12, 1, 2, 3, 4) else 'summer'
+
+def calculate_watering_info(plant):
+    last_watering_record = WateringHistory.query.filter_by(plant_id=plant.id).order_by(WateringHistory.watering_date.desc()).first()
+    if not last_watering_record:
+        days_since_watered = 999
+    else:
+        days_since_watered = (date.today() - last_watering_record.watering_date).days
+    season = get_season(datetime.utcnow().month)
+    if plant.plant_rule:
+        frequency_weeks = plant.plant_rule.summer_weeks if season == 'summer' else plant.plant_rule.winter_weeks
+    else:
+        frequency_weeks = 2 # Valeur par défaut si la règle n'est pas trouvée
+    return {"days_since_watered": days_since_watered, "watering_frequency": frequency_weeks * 7}
+
+def send_telegram_message(message):
+    url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
+    payload = {'chat_id': config.TELEGRAM_CHAT_ID, 'text': message, 'parse_mode': 'Markdown'}
     try:
-        requests.post(url, json=payload, timeout=10)
-        print("✅ Notification Telegram envoyée.")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Erreur Notification Telegram : {e}")
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200: print("✅ Notification Telegram envoyée.")
+        else: print(f"❌ Erreur Telegram: {response.text}")
+    except Exception as e:
+        print(f"❌ Impossible d'envoyer la notification Telegram : {e}")
 
-def boucle_enregistrement_meteo():
-    print("Lancement du thread d'enregistrement météo...")
-    with app.app_context():
-        while True:
-            try:
-                temp = round(sense.get_temperature(), 2); hum = round(sense.get_humidity(), 2); pres = round(sense.get_pressure(), 2)
-                heat_idx = calculate_noaa_heat_index(temp, hum)
-                db = sqlite3.connect(DB_FILE)
-                db.execute("INSERT INTO sensor_readings (timestamp, temperature, humidity, pressure, heat_index) VALUES (?, ?, ?, ?, ?)",
-                           (datetime.now(), temp, hum, pres, heat_idx))
-                db.commit()
-                db.close()
-            except Exception as e:
-                print(f"Erreur dans boucle_enregistrement_meteo: {e}")
-            time.sleep(300)
-
-def boucle_notifications_arrosage():
-    global notified_today, last_check_day
-    print("Lancement du thread de notification d'arrosage...")
-    time.sleep(20)
+# ======================= 4. THREADS D'ARRIÈRE-PLAN =======================
+def weather_thread_func():
     while True:
         try:
-            if date.today() != last_check_day:
-                notified_today.clear(); last_check_day = date.today()
-                print("Réinitialisation des notifications quotidiennes.")
+            url = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
+            response = requests.get(url, timeout=10)
+            if response.status_code != 200:
+                print(f"❌ Erreur API Météo: {response.json().get('message', 'Erreur inconnue')}")
+                time.sleep(300); continue
+            data = response.json()
+            with data_lock:
+                latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
             with app.app_context():
-                plants = get_db().execute("SELECT p.id, p.name, pr.summer_weeks, pr.winter_weeks, p.last_watered FROM plants p JOIN plant_rules pr ON p.type = pr.name").fetchall()
-                plants_to_water = []
-                for plant in plants:
-                    last_watered = datetime.strptime(plant['last_watered'], '%Y-%m-%d').date()
-                    days_since = (date.today() - last_watered).days
-                    interval_weeks = plant['summer_weeks'] if is_summer() else plant['winter_weeks']
-                    watering_interval_days = interval_weeks * 7
-                    if days_since >= watering_interval_days and plant['id'] not in notified_today:
-                        plants_to_water.append(plant['name']); notified_today.add(plant['id'])
-                if plants_to_water:
-                    message = "💧 <b>Alerte Arrosage RaspiHome</b> 💧\n\nLes plantes suivantes ont besoin d'eau :\n"
-                    for name in plants_to_water: message += f"- {name}\n"
-                    send_telegram_notification(message)
-            time.sleep(4 * 3600)
+                db.session.add(SensorReading(source='weather', temperature=data['main']['temp'], humidity=data['main']['humidity'], pressure=data['main']['pressure']))
+                db.session.commit()
         except Exception as e:
-            print(f"Erreur dans boucle_notifications_arrosage: {e}"); time.sleep(600)
+            print(f"❌ Exception dans le thread météo: {e}")
+        time.sleep(900)
 
+def sensehat_thread_func():
+    while True:
+        if sense:
+            temp, humidity, pressure = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
+            cpu_temp_str = os.popen("vcgencmd measure_temp").readline()
+            cpu_temp = float(cpu_temp_str.replace("temp=", "").replace("'C\n", ""))
+            temp = temp - ((cpu_temp - temp) / 2.5)
+        else:
+            temp, humidity, pressure = 25.0, 45.0, 1012.0
+        with data_lock:
+            latest_sensor_data["sensehat"] = {"temperature": temp, "humidity": humidity, "pressure": pressure, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        with app.app_context():
+            db.session.add(SensorReading(source='sensehat', temperature=temp, humidity=humidity, pressure=pressure))
+            db.session.commit()
+        time.sleep(60)
+
+def notification_thread_func():
+    time.sleep(60)
+    while True:
+        with app.app_context():
+            plants_to_water = [p.name for p in Plant.query.all() if calculate_watering_info(p)["days_since_watered"] >= calculate_watering_info(p)["watering_frequency"]]
+            if plants_to_water:
+                send_telegram_message("💧 *Rappel d'arrosage !*\n- " + "\n- ".join(plants_to_water))
+        time.sleep(3600)
+
+# ======================= 5. ROUTES DE L'API FLASK =======================
 @app.route('/')
-def index(): return render_template('index.html')
+def serve_index():
+    return render_template('index.html')
 
 @app.route('/templates/<path:filename>')
-def serve_template_files(filename): return send_from_directory('templates', filename)
+def serve_template_files(filename):
+    return send_from_directory('templates', filename)
 
-def get_outdoor_weather():
-    if not all([config.API_KEY, config.LATITUDE, config.LONGITUDE]) or "VOTRE_" in config.API_KEY:
-        return None
-    url = f"https://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return {
-            "temperature": data["main"]["temp"], "humidite": data["main"]["humidity"], "pression": data["main"]["pressure"],
-            "heat_index": data["main"]["feels_like"], "description": data["weather"][0]["description"].capitalize(), "icon": data["weather"][0]["icon"]
-        }
-    except requests.exceptions.RequestException as e:
-        print(f"Erreur API météo : {e}"); return None
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
-@app.route('/alldata')
-def get_all_data():
-    outdoor_data = get_outdoor_weather()
-    if outdoor_data: return jsonify(outdoor_data)
-    temp = round(sense.get_temperature(), 2); hum = round(sense.get_humidity(), 2)
-    return jsonify({
-        'temperature': temp, 'humidite': hum, 'pression': round(sense.get_pressure(), 2),
-        'heat_index': calculate_noaa_heat_index(temp, hum), 'description': "Données intérieures (Sense HAT)", 'icon': "04d"
-    })
+@app.route('/weather')
+def get_weather_data():
+    with data_lock: return jsonify(latest_sensor_data.get("weather", {}))
 
-@app.route('/history')
-def history():
-    period = request.args.get('period', 'day')
-    formats = {
-        'day':   {'format': '%Y-%m-%d %H:00', 'interval': '1 DAY', 'label': '%H:%M'},
-        'week':  {'format': '%Y-%m-%d', 'interval': '7 DAY', 'label': '%d/%m'},
-        'month': {'format': '%Y-%m-%d', 'interval': '1 MONTH', 'label': '%d/%m'}
-    }
-    config = formats.get(period, formats['day'])
-    query = f"""
-        SELECT strftime('{config["label"]}', timestamp) as label,
-            ROUND(AVG(temperature), 2) as temp, ROUND(AVG(humidity), 2) as hum
-        FROM sensor_readings WHERE timestamp >= DATETIME('now', '-{config["interval"]}')
-        GROUP BY strftime('{config["format"]}', timestamp) ORDER BY timestamp ASC;
-    """
-    rows = get_db().execute(query).fetchall()
-    return jsonify({'datetime': [row['label'] for row in rows], 'temp': [row['temp'] for row in rows], 'hum': [row['hum'] for row in rows]})
+@app.route('/sensehat_latest')
+def get_sensehat_latest():
+    with data_lock: return jsonify(latest_sensor_data.get("sensehat", {}))
 
-@app.route('/plants')
-def get_plant_statuses():
-    plants = get_db().execute("SELECT p.id, p.name, p.type, p.last_watered, pr.summer_weeks, pr.winter_weeks FROM plants p JOIN plant_rules pr ON p.type = pr.name").fetchall()
-    plant_list = []
-    for plant in plants:
-        plant_dict = dict(plant)
-        last_watered = datetime.strptime(plant['last_watered'], '%Y-%m-%d').date()
-        days_since = (date.today() - last_watered).days
-        
-        interval_weeks = plant['summer_weeks'] if is_summer() else plant['winter_weeks']
-        watering_interval_days = interval_weeks * 7
-        
-        days_until = watering_interval_days - days_since
-        
-        # --- MODIFICATIONS ICI ---
-        plant_dict['days_until_watering'] = days_until  # On ajoute le nombre de jours
-        plant_dict['watering_interval'] = watering_interval_days # On ajoute l'intervalle total
-        
-        plant_dict['is_due'] = days_until <= 0
-        plant_dict['status'] = f"Dans {days_until} jours" if days_until > 0 else ("Aujourd'hui !" if days_until == 0 else "En retard")
-        plant_list.append(plant_dict)
-    return jsonify(plant_list)
+@app.route('/esp32_latest')
+def get_esp32_latest():
+    with data_lock: return jsonify(latest_sensor_data.get("esp32", {}))
 
-@app.route('/watered/<int:plant_id>', methods=['POST'])
-def watered_plant(plant_id):
-    today_str = date.today().strftime('%Y-%m-%d'); db = get_db()
-    db.execute("UPDATE plants SET last_watered = ? WHERE id = ?", (today_str, plant_id))
-    db.execute("INSERT INTO watering_history (plant_id, watering_date) VALUES (?, ?)", (plant_id, today_str))
-    db.commit(); return jsonify({'status': 'success'})
-
-@app.route('/add_plant', methods=['POST'])
-def add_plant():
-    data = request.get_json(); db = get_db()
-    cursor = db.execute("INSERT INTO plants (name, type, last_watered) VALUES (?, ?, ?)", (data['nom'].strip(), data['type'], date.today().strftime('%Y-%m-%d')))
-    db.execute("INSERT INTO watering_history (plant_id, watering_date) VALUES (?, ?)", (cursor.lastrowid, date.today().strftime('%Y-%m-%d')))
-    db.commit(); return jsonify({'status': 'success', 'message': 'Plante ajoutée !'})
-
-@app.route('/delete_plant/<int:plant_id>', methods=['POST'])
-def delete_plant(plant_id):
-    db = get_db(); db.execute("DELETE FROM plants WHERE id = ?", (plant_id,)); db.commit()
-    return jsonify({'status': 'success', 'message': 'Plante supprimée'})
-
-@app.route('/edit_plant/<int:plant_id>', methods=['POST'])
-def edit_plant(plant_id):
+@app.route('/esp32/data', methods=['POST'])
+def receive_esp32_data():
     data = request.get_json()
-    db = get_db(); db.execute("UPDATE plants SET name = ?, type = ? WHERE id = ?", (data['name'], data['type'], plant_id)); db.commit()
-    return jsonify({'status': 'success', 'message': 'Plante mise à jour !'})
+    if not data or 'temperature' not in data or 'humidity' not in data:
+        return jsonify({"error": "Données manquantes"}), 400
+    with data_lock:
+        latest_sensor_data["esp32"] = {"temperature": data['temperature'], "humidity": data['humidity'], "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    with app.app_context():
+        db.session.add(SensorReading(source='esp32', temperature=data['temperature'], humidity=data['humidity']))
+        db.session.commit()
+    print(f"✅ Données reçues de l'ESP32: {data}")
+    return jsonify({"status": "success"}), 200
 
-@app.route('/plant_history/<int:plant_id>')
-def get_plant_history(plant_id):
-    history = get_db().execute("SELECT watering_date FROM watering_history WHERE plant_id = ? ORDER BY watering_date DESC", (plant_id,)).fetchall()
-    return jsonify([row['watering_date'] for row in history])
+@app.route('/alldata', methods=['GET'])
+def get_all_data():
+    period = request.args.get('period', 'day')
+    if period == 'week':
+        delta = timedelta(days=7)
+    elif period == 'month':
+        delta = timedelta(days=30)
+    else:
+        delta = timedelta(days=1)
+    since = datetime.utcnow() - delta
 
-# --- CORRECTION ICI ---
-@app.route('/plant_types')
-def get_plant_types(): # Suppression de (self)
-    types = get_db().execute("SELECT name FROM plant_rules ORDER BY name").fetchall()
-    return jsonify([row['name'] for row in types])
+    sensehat_readings = SensorReading.query.filter(SensorReading.source == 'sensehat', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
+    esp32_readings = SensorReading.query.filter(SensorReading.source == 'esp32', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
 
-# --- CORRECTION ICI ---
-@app.route('/plant_rules')
-def get_plant_rules(): # Suppression de (self)
-    rules = get_db().execute("SELECT name, summer_weeks, winter_weeks FROM plant_rules").fetchall()
-    return jsonify({rule['name']: [rule['summer_weeks'], rule['winter_weeks']] for rule in rules})
+    datasets = [
+        {"label": "Temp. Intérieure (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in sensehat_readings], "borderColor": "#ef476f", "fill": False, "yAxisID": "y_temp"},
+        {"label": "Temp. SDB (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in esp32_readings], "borderColor": "#fca311", "fill": False, "yAxisID": "y_temp"},
+        {"label": "Hum. Intérieure (%)", "data": [{"x": r.timestamp.isoformat(), "y": r.humidity} for r in sensehat_readings], "borderColor": "#06d6a0", "fill": False, "yAxisID": "y_hum"},
+        {"label": "Hum. SDB (%)", "data": [{"x": r.timestamp.isoformat(), "y": r.humidity} for r in esp32_readings], "borderColor": "#118ab2", "fill": False, "yAxisID": "y_hum"},
+    ]
+    return jsonify({"datasets": datasets})
 
-# --- CORRECTION ICI ---
-@app.route('/add_plant_type', methods=['POST'])
-def add_plant_type(): # Suppression de (self)
-    data = request.get_json(); db = get_db()
-    db.execute("INSERT OR REPLACE INTO plant_rules (name, summer_weeks, winter_weeks) VALUES (?, ?, ?)",
-                 (data['type_name'].lower().strip().replace(' ', '_'), int(data['summer_weeks']), int(data['winter_weeks'])))
-    db.commit(); return jsonify({'status': 'success', 'message': f"Type sauvegardé !"})
+@app.route('/plants', methods=['GET'])
+def get_plants():
+    plants = Plant.query.all()
+    plants_data = []
+    for p in plants:
+        info = calculate_watering_info(p)
+        plants_data.append({"id": p.id, "name": p.name, "type_name": p.type, "type_id": p.type, **info})
+    return jsonify(plants_data)
 
-# --- CORRECTION ICI ---
-@app.route('/smart_recommendation')
-def get_smart_recommendation(): # Suppression de (self)
+@app.route('/plant_types', methods=['GET'])
+def get_plant_types():
+    types = PlantRule.query.all()
+    return jsonify([{"id": t.name, "name": t.name} for t in types])
+
+@app.route('/plant/<int:plant_id>/water', methods=['POST'])
+def water_plant(plant_id):
+    new_watering = WateringHistory(plant_id=plant_id, watering_date=date.today())
+    db.session.add(new_watering)
+    db.session.commit()
+    return jsonify({"message": "Arrosage enregistré"})
+
+@app.route('/smart_recommendation', methods=['GET'])
+def get_smart_recommendation():
+    with app.app_context():
+        plants_to_water = [p.name for p in Plant.query.all() if calculate_watering_info(p)["days_since_watered"] >= calculate_watering_info(p)["watering_frequency"]]
+        if plants_to_water:
+            message = f"Rappel : Il est temps d'arroser {', '.join(plants_to_water)} !"
+            icon = "fa-tint"
+        else:
+            random_tip = Tip.query.order_by(func.random()).first()
+            message = random_tip.tip if random_tip else "Pensez à vérifier vos plantes aujourd'hui."
+            icon = "fa-lightbulb"
+    return jsonify({"message": message, "icon": icon})
+
+@app.route('/random_tip', methods=['GET'])
+def get_random_tip():
+    random_tip = Tip.query.order_by(func.random()).first()
+    message = random_tip.tip if random_tip else "Pensez à vérifier vos plantes aujourd'hui."
+    icon = "fa-lightbulb"
+    return jsonify({"message": message, "icon": icon})
+
+@app.route('/refresh/all', methods=['POST'])
+def refresh_all_sensors():
     try:
-        outdoor_weather = get_outdoor_weather()
-        if outdoor_weather and outdoor_weather['temperature'] > 28:
-            plants = get_db().execute("SELECT p.name, p.last_watered, pr.summer_weeks FROM plants p JOIN plant_rules pr ON p.type = pr.name").fetchall()
-            for plant in plants:
-                last_watered = datetime.strptime(plant['last_watered'], '%Y-%m-%d').date()
-                if (date.today() - last_watered).days >= (plant['summer_weeks'] * 7) - 2:
-                    return jsonify({"icon": "fa-temperature-high", "message": f"Forte chaleur aujourd'hui ! Pensez à vérifier la terre de votre <strong>{plant['name']}</strong>."})
-        tip = get_db().execute("SELECT tip FROM tips WHERE category = 'general' ORDER BY RANDOM() LIMIT 1").fetchone()
-        return jsonify({"icon": "fa-lightbulb", "message": tip['tip'] if tip else "Passez une excellente journée !"})
-    except Exception:
-        return jsonify({"icon": "fa-info-circle", "message": "Vérifiez vos plantes régulièrement."})
+        url = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            with data_lock:
+                latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
+            print("🔄 Météo rafraîchie manuellement.")
+    except Exception as e:
+        print(f"❌ Erreur de rafraîchissement manuel de la météo: {e}")
+    if sense:
+        temp, humidity, pressure = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
+        cpu_temp_str = os.popen("vcgencmd measure_temp").readline()
+        cpu_temp = float(cpu_temp_str.replace("temp=", "").replace("'C\n", ""))
+        temp_corrected = temp - ((cpu_temp - temp) / 2.5)
+        with data_lock:
+            latest_sensor_data["sensehat"] = {"temperature": temp_corrected, "humidity": humidity, "pressure": pressure, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        print("🔄 Sense HAT rafraîchi manuellement.")
+    try:
+        esp32_url = f"http://{config.ESP32_IP}/read_sensor"
+        response = requests.get(esp32_url, timeout=5)
+        if response.status_code == 200:
+            print("🔄 Ordre de lecture envoyé à l'ESP32.")
+    except Exception as e:
+        print(f"❌ Impossible de contacter l'ESP32 pour rafraîchissement: {e}")
+    time.sleep(2)
+    with data_lock:
+        return jsonify(latest_sensor_data)
 
+# ======================= 6. DÉMARRAGE =======================
 if __name__ == '__main__':
-    threading.Thread(target=boucle_enregistrement_meteo, daemon=True).start()
-    threading.Thread(target=boucle_notifications_arrosage, daemon=True).start()
-    send_telegram_notification("✅ <b>RaspiHome Hub Démarré</b>\nLe système de surveillance est maintenant en ligne.")
-    print("🚀 Lancement du serveur Flask sur http://0.0.0.0:5001")
-    app.run(host='0.0.0.0', port=5000)
+    # On ne lance PAS db.create_all() pour ne pas interférer avec la base existante.
+    print("🚀 Lancement du thread d'enregistrement météo...")
+    threading.Thread(target=weather_thread_func, daemon=True).start()
+    print("🚀 Lancement du thread de lecture du Sense HAT...")
+    threading.Thread(target=sensehat_thread_func, daemon=True).start()
+    print("🚀 Lancement du thread de notification d'arrosage...")
+    threading.Thread(target=notification_thread_func, daemon=True).start()
+    print("🚀 Lancement du serveur Flask sur http://0.0.0.0:5000")
+    app.run(host='0.0.0.0', port=5000, debug=False)

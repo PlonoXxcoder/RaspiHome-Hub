@@ -1,22 +1,13 @@
-  # Fichiers de données générés
-    *.db
-    *.csv
-    
-    # Environnement virtuel Python
-    venv/
-    
-    # Fichiers de configuration locaux (contenant des secrets)
-    config.py
-    
-    # Fichiers système et cache
-    __pycache__/
-    *.pyc
-    .DS_Store
-    ```
-
-# Fichiers locaux à ignorer
+# Fichier de configuration contenant les clés secrètes
 config.py
-raspihome.db
-*.db-journal
+
+# Fichiers de cache Python
 __pycache__/
-templates/index.htmlY
+*.pyc
+
+# Fichiers de base de données (ne jamais stocker les données sur Git)
+*.db
+*.db.bak
+
+# Dossier d'instance de Flask
+instance/

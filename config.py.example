@@ -1,0 +1,14 @@
+# Fichier : config.py.example
+# Copiez ce fichier en config.py et remplissez les valeurs.
+
+# --- Configuration de l'API OpenWeather ---
+API_KEY = "VOTRE_CLÉ_API_OPENWEATHER_ICI"
+LATITUDE = "VOTRE_LATITUDE"
+LONGITUDE = "VOTRE_LONGITUDE"
+
+# --- Configuration du Bot Telegram ---
+TELEGRAM_TOKEN = "VOTRE_TOKEN_DE_BOT_TELEGRAM"
+TELEGRAM_CHAT_ID = "VOTRE_CHAT_ID_TELEGRAM"
+
+# --- Configuration des appareils locaux ---
+ESP32_IP = "IP_DE_VOTRE_ESP32"

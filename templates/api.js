@@ -1,77 +1,106 @@
-/**
- * Ce module centralise toutes les communications avec l'API du serveur.
- * Il exporte des fonctions claires pour chaque action, cachant la complexité
- * des appels `fetch` et de la gestion des erreurs réseau.
+/*
+ * Fichier : templates/api.js
+ * Rôle : Gère toutes les communications avec le serveur Flask (backend).
  */
 
-// --- FONCTIONS DE BASE (NON EXPORTÉES) ---
-
 /**
- * Fonction générique pour effectuer des requêtes GET.
- * @param {string} url - L'URL de l'API à appeler.
+ * Une fonction utilitaire pour gérer les appels fetch, vérifier les erreurs et parser le JSON.
+ * @param {string} url L'URL de l'API à appeler.
+ * @param {object} options Les options de la requête fetch (méthode, headers, body, etc.).
  * @returns {Promise<any>} La réponse JSON du serveur.
  */
-async function fetchData(url) {
+async function fetchJSON(url, options = {}) {
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, options);
         if (!response.ok) {
-            throw new Error(`Erreur HTTP ! Statut: ${response.status}`);
+            throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+        }
+        if (response.status === 204) { // No Content
+            return {};
         }
         return await response.json();
     } catch (error) {
-        console.error(`Erreur lors de la récupération des données depuis ${url}:`, error);
+        console.error(`Erreur lors de l'appel à ${url}:`, error);
         throw error;
     }
 }
 
-/**
- * Fonction générique pour effectuer des requêtes POST.
- * @param {string} url - L'URL de l'API à appeler.
- * @param {object} data - Les données JavaScript à envoyer dans le corps de la requête.
- * @returns {Promise<any>} La réponse JSON du serveur.
- */
-async function postData(url, data) {
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Erreur HTTP ! Statut: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        console.error(`Erreur lors de l'envoi de données vers ${url}:`, error);
-        throw error;
-    }
+// --- Fonctions d'obtention des données (GET) ---
+
+export function getWeatherData() {
+    return fetchJSON('/weather');
 }
 
+export function getSenseHATData() {
+    return fetchJSON('/sensehat_latest');
+}
 
-// --- FONCTIONS D'API SPÉCIFIQUES (EXPORTÉES) ---
+export function getESP32Data() {
+    return fetchJSON('/esp32_latest');
+}
 
-// -- Données Météo --
-export const fetchCurrentData = () => fetchData('/alldata');
-export const fetchHistory = (period) => fetchData(`/history?period=${period}`);
+export function getChartData(period = 'day') {
+    return fetchJSON(`/alldata?period=${period}`);
+}
 
-// -- Gestion des Plantes --
-export const fetchPlants = () => fetchData('/plants');
-export const addPlant = (plantData) => postData('/add_plant', { nom: plantData.name, type: plantData.type });
-export const deletePlant = (plantId) => postData(`/delete_plant/${plantId}`, {});
-export const savePlantEdit = (plantId, plantData) => postData(`/edit_plant/${plantId}`, plantData);
+export function getPlants() {
+    return fetchJSON('/plants');
+}
 
-// -- Arrosage --
-export const markAsWatered = (plantId) => postData(`/watered/${plantId}`, {});
-export const fetchWateringHistory = (plantId) => fetchData(`/plant_history/${plantId}`);
+export function getPlantTypes() {
+    return fetchJSON('/plant_types');
+}
 
-// -- Types de Plantes --
-export const fetchPlantTypes = () => fetchData('/plant_types');
-export const fetchPlantRules = () => fetchData('/plant_rules');
-export const savePlantType = (typeData) => postData('/add_plant_type', typeData);
+export function getSmartRecommendation() {
+    return fetchJSON('/smart_recommendation');
+}
 
-// -- Astuces et Recommandations --
-export const fetchSmartRecommendation = () => fetchData('/smart_recommendation');
-export const fetchTipForType = (plantType) => fetchData(`/tip_for_type/${plantType}`);
+export function getRandomTip() {
+    return fetchJSON('/random_tip');
+}
+
+export function getPlant(id) {
+    return fetchJSON(`/plant/${id}`);
+}
+
+// --- Fonctions de modification des données (POST, PUT, DELETE) ---
+
+export function addPlant(data) {
+    return fetchJSON('/plants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+}
+
+export function managePlantType(data) {
+    return fetchJSON('/plant_types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+}
+
+export function updatePlant(id, data) {
+    return fetchJSON(`/plant/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+}
+
+export function deletePlant(id) {
+    return fetchJSON(`/plant/${id}`, {
+        method: 'DELETE'
+    });
+}
+
+export function waterPlant(id) {
+    return fetchJSON(`/plant/${id}/water`, {
+        method: 'POST'
+    });
+}
+
+export function refreshAllSensors() {
+    return fetchJSON('/refresh/all', { method: 'POST' });
+}
