@@ -227,6 +227,8 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
    - [X] **Affichage "Dernière MàJ"** et codes couleurs sur les cartes météo.
    - [X] Migration de la DB vers un schéma `int_`/`ext_`.
    - [ ]** Déploiement Fiable** : Remplacement du lancement manuel par un service systemd avec redémarrage automatique.
+   - 
+- **[ ] v1.5 : Gestion des taches ménagere **
 
 ### 🚀 Prochaines Étapes
 - [ ] **Alertes Météo avancées ** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur), en cas de dépassement (ex: "Alerte : Température intérieure trop élevée !").
