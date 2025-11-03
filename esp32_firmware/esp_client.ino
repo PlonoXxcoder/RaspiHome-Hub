@@ -1,8 +1,9 @@
 #include <WiFi.h>
+#include <WebServer.h>   // On réintègre le serveur web
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "DHT.h"
-#include <vector> // Pour utiliser la file d'attente (vector)
+#include <vector>
 
 // ------------------- À MODIFIER -------------------
 const char* ssid = "LE_NOM_DE_VOTRE_WIFI";
@@ -17,19 +18,25 @@ const int DHTPIN = 4;
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-// Intervalle de mesure (toutes les 5 minutes)
-const long interval = 300000; // 5 * 60 * 1000
+// --- Serveur Web sur l'ESP32 ---
+WebServer esp_server(80);
+
+// Intervalle de mesure (5 minutes)
+const long interval = 300000;
 unsigned long previousMillis = 0;
 
-// --- NOUVEAU : Structure pour stocker une mesure ---
-struct SensorMeasurement {
-  float temperature;
-  float humidity;
-};
-
-// --- NOUVEAU : La file d'attente pour les mesures en cache ---
+struct SensorMeasurement { float temperature; float humidity; };
 std::vector<SensorMeasurement> measurement_queue;
-const int MAX_QUEUE_SIZE = 100; // Stocke jusqu'à 100 mesures en cas de déconnexion
+const int MAX_QUEUE_SIZE = 100;
+
+/**
+ * Fonction appelée quand le Pi envoie l'ordre /read_sensor
+ */
+void handleForceRead() {
+  Serial.println(">>> Ordre de lecture manuel reçu du Pi !");
+  esp_server.send(200, "text/plain", "OK, lecture forcée.");
+  readAndProcessSensorData(); // On force une lecture immédiate
+}
 
 void setup() {
   Serial.begin(115200);
@@ -37,33 +44,39 @@ void setup() {
   
   connectToWiFi();
 
-  // On attend un peu que tout se stabilise avant la première lecture
-  delay(2000); 
+  // Configuration du serveur web de l'ESP32
+  esp_server.on("/read_sensor", HTTP_GET, handleForceRead);
+  esp_server.begin();
+  Serial.println("Serveur web ESP32 démarré. En attente d'ordres sur /read_sensor");
+
   Serial.println("\n--- Démarrage du cycle de mesures ---");
   previousMillis = millis();
 }
 
 void loop() {
-  // 1. On vérifie la connexion WiFi à chaque boucle
+  // 1. Gérer les requêtes entrantes du Pi (pour le bouton "Rafraîchir")
+  esp_server.handleClient();
+  
+  // 2. Vérifier la connexion WiFi
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi déconnecté. Tentative de reconnexion...");
-    connectToWiFi();
-  } else {
-    // Si on est connecté ET qu'il y a des données en attente, on les envoie
-    if (!measurement_queue.empty()) {
-      Serial.printf("WiFi reconnecté ! Synchronisation de %d mesure(s) en attente...\n", measurement_queue.size());
-      syncQueue();
-    }
+    Serial.println("WiFi déconnecté. Tentative de reconnexion en arrière-plan...");
+    WiFi.reconnect();
+    delay(5000); // Attendre 5s avant de revérifier
+    return; // On ne fait rien d'autre tant qu'il n'y a pas de WiFi
   }
   
-  // 2. On prend une mesure toutes les 5 minutes
+  // 3. Si on est connecté et que la file d'attente n'est pas vide, on synchronise
+  if (!measurement_queue.empty()) {
+    Serial.printf("WiFi connecté ! Synchronisation de %d mesure(s) en attente...\n", measurement_queue.size());
+    syncQueue();
+  }
+  
+  // 4. Prendre une mesure toutes les 5 minutes
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
     readAndProcessSensorData();
   }
-
-  delay(1000); // Petite pause pour ne pas surcharger le CPU
 }
 
 void connectToWiFi() {
@@ -71,23 +84,15 @@ void connectToWiFi() {
   Serial.println(ssid);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  int attempt = 0;
-  while (WiFi.status() != WL_CONNECTED && attempt < 20) { // On essaie pendant 10 secondes
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    attempt++;
   }
-  
-  if(WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nConnecté au WiFi !");
-    Serial.print("Adresse IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nÉchec de la connexion WiFi. Réessai plus tard.");
-  }
+  Serial.println("\nConnecté au WiFi !");
+  Serial.print("Adresse IP: ");
+  Serial.println(WiFi.localIP());
 }
 
-// Lit le capteur et décide quoi faire des données
 void readAndProcessSensorData() {
   Serial.println("\n--------------------");
   Serial.print("Lecture du capteur... ");
@@ -95,39 +100,34 @@ void readAndProcessSensorData() {
   float t = dht.readTemperature();
 
   if (isnan(h) || isnan(t)) {
-    Serial.println("Échec !");
+    Serial.println("Échec de la lecture du capteur !");
     return;
   }
   Serial.printf("Réussie: %.1f°C, %.1f%%\n", t, h);
 
-  // On crée un objet pour cette mesure
   SensorMeasurement new_measurement = {t, h};
 
-  // On essaie d'envoyer la nouvelle mesure immédiatement
   if (sendDataToServer(new_measurement)) {
-    Serial.println("-> Données envoyées avec succès au serveur.");
+    Serial.println("-> Données envoyées avec succès.");
   } else {
     Serial.println("-> Échec de l'envoi. Mise en file d'attente.");
-    // Si l'envoi échoue, on ajoute la mesure à la file d'attente
     if (measurement_queue.size() < MAX_QUEUE_SIZE) {
       measurement_queue.push_back(new_measurement);
       Serial.printf("   Taille de la file d'attente: %d\n", measurement_queue.size());
     } else {
-      Serial.println("   ATTENTION: La file d'attente est pleine. La mesure est perdue.");
+      Serial.println("   ATTENTION: File d'attente pleine. Mesure perdue.");
     }
   }
 }
 
-// Tente d'envoyer UNE mesure au serveur. Retourne true si succès, false si échec.
 bool sendDataToServer(SensorMeasurement measurement) {
   if (WiFi.status() != WL_CONNECTED) {
-    return false; // Pas de WiFi, échec immédiat
+    return false;
   }
   
   bool success = false;
   HTTPClient http;
-  char server_url[100];
-  sprintf(server_url, "http://%s:5000%s", server_ip, server_endpoint);
+  String server_url = "http://" + String(server_ip) + ":5000" + String(server_endpoint);
   
   http.begin(server_url);
   http.addHeader("Content-Type", "application/json");
@@ -136,7 +136,7 @@ bool sendDataToServer(SensorMeasurement measurement) {
   jsonDoc["temperature"] = measurement.temperature;
   jsonDoc["humidity"] = measurement.humidity;
   
-  char jsonBuffer[100];
+  String jsonBuffer;
   serializeJson(jsonDoc, jsonBuffer);
   
   int httpResponseCode = http.POST(jsonBuffer);
@@ -144,30 +144,31 @@ bool sendDataToServer(SensorMeasurement measurement) {
   if (httpResponseCode == 200) {
     success = true;
   } else {
-    Serial.printf("   Erreur d'envoi. Code de réponse: %d\n", httpResponseCode);
+    Serial.printf("   Erreur d'envoi. Code de réponse du serveur: %d\n", httpResponseCode);
   }
   
   http.end();
   return success;
 }
 
-// Fonction pour vider la file d'attente
 void syncQueue() {
-  // On utilise un itérateur pour parcourir et supprimer en même temps
-  for (auto it = measurement_queue.begin(); it != measurement_queue.end(); ) {
+  while (!measurement_queue.empty()) {
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("Perte de connexion pendant la synchronisation. Arrêt.");
-      return; // On arrête tout si le WiFi se coupe pendant la synchro
+      return;
     }
     
     Serial.print("   Envoi de la mesure en cache... ");
-    if (sendDataToServer(*it)) {
+    // On prend la plus ancienne mesure de la file
+    SensorMeasurement measurement_to_send = measurement_queue.front();
+
+    if (sendDataToServer(measurement_to_send)) {
       Serial.println("OK.");
-      it = measurement_queue.erase(it); // Si succès, on supprime l'élément de la file
-      delay(500); // Petite pause pour ne pas saturer le serveur
+      measurement_queue.erase(measurement_queue.begin()); // Si succès, on la supprime
+      delay(500);
     } else {
       Serial.println("Échec. Réessai plus tard.");
-      return; // Si l'envoi échoue, on arrête et on réessaiera plus tard
+      return;
     }
   }
   Serial.println("Synchronisation terminée !");
