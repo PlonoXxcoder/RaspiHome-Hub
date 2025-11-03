@@ -77,27 +77,57 @@ export function displayESP32Data(data) {
     }
 }
 
-export function createChart(chartData) {
+export function createChart(chartData, configData) { // On passe maintenant les données de config
     const ctx = document.getElementById('myChart').getContext('2d');
     if (chartInstance) {
         chartInstance.destroy();
     }
 
-    let timeUnit = 'hour';
-    if (chartData.datasets.length > 0 && chartData.datasets[0].data.length > 1) {
-        const firstPoint = new Date(chartData.datasets[0].data[0].x);
-        const lastPoint = new Date(chartData.datasets[0].data[chartData.datasets[0].data.length - 1].x);
-        const diffDays = (lastPoint - firstPoint) / (1000 * 60 * 60 * 24);
-        if (diffDays > 2) {
-            timeUnit = 'day';
-        }
+    // --- LOGIQUE POUR LES ZONES NUIT/JOUR ---
+    const nightZones = {};
+    if (configData.sunrise && configData.sunset) {
+        nightZones.nightStart = {
+            type: 'box',
+            xMin: new Date(new Date().setHours(0,0,0,0)),
+            xMax: new Date(configData.sunrise),
+            backgroundColor: 'rgba(100, 100, 100, 0.1)',
+            borderColor: 'transparent'
+        };
+        nightZones.nightEnd = {
+            type: 'box',
+            xMin: new Date(configData.sunset),
+            xMax: new Date(new Date().setHours(23,59,59,999)),
+            backgroundColor: 'rgba(100, 100, 100, 0.1)',
+            borderColor: 'transparent'
+        };
+    }
+
+    // --- LOGIQUE POUR LES LIGNES DE SEUIL ---
+    const tempThresholds = {};
+    if(configData.temp_ideal_min) {
+        tempThresholds.min = {
+            type: 'line',
+            yMin: configData.temp_ideal_min,
+            yMax: configData.temp_ideal_min,
+            borderColor: 'rgba(0, 255, 0, 0.3)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            label: { content: `${configData.temp_ideal_min}°C`, display: true, position: 'start' }
+        };
+        tempThresholds.max = {
+            type: 'line',
+            yMin: configData.temp_ideal_max,
+            yMax: configData.temp_ideal_max,
+            borderColor: 'rgba(255, 0, 0, 0.3)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            label: { content: `${configData.temp_ideal_max}°C`, display: true, position: 'start' }
+        };
     }
 
     chartInstance = new Chart(ctx, {
         type: 'line',
-        data: {
-            datasets: chartData.datasets
-        },
+        data: { datasets: chartData.datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -105,31 +135,30 @@ export function createChart(chartData) {
             scales: {
                 x: {
                     type: 'time',
-                    time: {
-                        unit: timeUnit,
-                        tooltipFormat: 'dd MMM HH:mm',
-                        displayFormats: {
-                            hour: 'HH:mm',
-                            day: 'dd MMM'
-                        }
-                    },
-                    adapters: {
-                        date: {
-                            locale: 'fr'
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Date / Heure'
-                    }
+                    time: { unit: 'hour', tooltipFormat: 'dd MMM HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd MMM' } },
+                    adapters: { date: { locale: 'fr' } },
+                    title: { display: true, text: 'Date / Heure' }
                 },
                 y_temp: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Température (°C)' } },
                 y_hum: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Humidité (%)' }, grid: { drawOnChartArea: false } }
+            },
+            plugins: {
+                // Configuration du Zoom
+                zoom: {
+                    pan: { enabled: true, mode: 'x' },
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                },
+                // Configuration des Annotations (seuils et zones)
+                annotation: {
+                    annotations: {
+                        ...nightZones,
+                        ...tempThresholds
+                    }
+                }
             }
         }
     });
 }
-
 export function displayPlants(plants) {
     const container = document.getElementById('plant-container');
     container.innerHTML = '';

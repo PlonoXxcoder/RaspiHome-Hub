@@ -26,7 +26,9 @@ async function fetchJSON(url, options = {}) {
 }
 
 // --- Fonctions d'obtention des données (GET) ---
-
+export function getConfigData() {
+    return fetchJSON('/config_data');
+}
 export function getWeatherData() {
     return fetchJSON('/weather');
 }

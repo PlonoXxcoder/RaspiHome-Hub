@@ -34,15 +34,20 @@ async function loadDistantData() {
     }
 }
 
+
 async function loadChart(period = 'day') {
     try {
-        const data = await api.getChartData(period);
-        ui.createChart(data);
+        // On charge les données ET la configuration en parallèle
+        const [chartData, configData] = await Promise.all([
+            api.getChartData(period),
+            api.getConfigData()
+        ]);
+        // On passe les deux à la fonction de création
+        ui.createChart(chartData, configData);
     } catch (error) {
         console.error("Erreur chargement graphique:", error);
     }
 }
-
 async function loadPlantData() {
     try {
         const [plants, types] = await Promise.all([api.getPlants(), api.getPlantTypes()]);

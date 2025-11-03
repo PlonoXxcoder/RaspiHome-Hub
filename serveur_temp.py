@@ -17,6 +17,13 @@ except ImportError:
     exit()
 
 try:
+    from astral.sun import sun
+    from astral import LocationInfo
+except ImportError:
+    sun, LocationInfo = None, None
+    print("⚠️ AVERTISSEMENT: 'astral' non installé. Les zones nuit/jour pour le graphique seront désactivées.")
+
+try:
     from sense_hat import SenseHat
     sense = SenseHat()
     print("✅ Sense HAT détecté.")
@@ -33,6 +40,9 @@ db = SQLAlchemy(app)
 
 latest_sensor_data = {"weather": {}, "sensehat": {}, "esp32": {}}
 data_lock = Lock()
+
+TEMP_IDEAL_MIN = 18.0
+TEMP_IDEAL_MAX = 25.0
 
 # ======================= 2. MODÈLES DE BASE DE DONNÉES (Adaptés à votre structure) =======================
 class PlantRule(db.Model):
@@ -75,15 +85,9 @@ def get_season(month):
 
 def calculate_watering_info(plant):
     last_watering_record = WateringHistory.query.filter_by(plant_id=plant.id).order_by(WateringHistory.watering_date.desc()).first()
-    if not last_watering_record:
-        days_since_watered = 999
-    else:
-        days_since_watered = (date.today() - last_watering_record.watering_date).days
+    days_since_watered = (date.today() - last_watering_record.watering_date).days if last_watering_record else 999
     season = get_season(datetime.utcnow().month)
-    if plant.plant_rule:
-        frequency_weeks = plant.plant_rule.summer_weeks if season == 'summer' else plant.plant_rule.winter_weeks
-    else:
-        frequency_weeks = 2 # Valeur par défaut si la règle n'est pas trouvée
+    frequency_weeks = plant.plant_rule.summer_weeks if plant.plant_rule else 2
     return {"days_since_watered": days_since_watered, "watering_frequency": frequency_weeks * 7}
 
 def send_telegram_message(message):
@@ -93,8 +97,7 @@ def send_telegram_message(message):
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200: print("✅ Notification Telegram envoyée.")
         else: print(f"❌ Erreur Telegram: {response.text}")
-    except Exception as e:
-        print(f"❌ Impossible d'envoyer la notification Telegram : {e}")
+    except Exception as e: print(f"❌ Impossible d'envoyer la notification Telegram : {e}")
 
 # ======================= 4. THREADS D'ARRIÈRE-PLAN =======================
 def weather_thread_func():
@@ -111,8 +114,7 @@ def weather_thread_func():
             with app.app_context():
                 db.session.add(SensorReading(source='weather', temperature=data['main']['temp'], humidity=data['main']['humidity'], pressure=data['main']['pressure']))
                 db.session.commit()
-        except Exception as e:
-            print(f"❌ Exception dans le thread météo: {e}")
+        except Exception as e: print(f"❌ Exception dans le thread météo: {e}")
         time.sleep(900)
 
 def sensehat_thread_func():
@@ -142,16 +144,11 @@ def notification_thread_func():
 
 # ======================= 5. ROUTES DE L'API FLASK =======================
 @app.route('/')
-def serve_index():
-    return render_template('index.html')
-
+def serve_index(): return render_template('index.html')
 @app.route('/templates/<path:filename>')
-def serve_template_files(filename):
-    return send_from_directory('templates', filename)
-
+def serve_template_files(filename): return send_from_directory('templates', filename)
 @app.route('/favicon.ico')
-def favicon():
-    return '', 204
+def favicon(): return '', 204
 
 @app.route('/weather')
 def get_weather_data():
@@ -168,30 +165,18 @@ def get_esp32_latest():
 @app.route('/esp32/data', methods=['POST'])
 def receive_esp32_data():
     data = request.get_json()
-    if not data or 'temperature' not in data or 'humidity' not in data:
-        return jsonify({"error": "Données manquantes"}), 400
-    with data_lock:
-        latest_sensor_data["esp32"] = {"temperature": data['temperature'], "humidity": data['humidity'], "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    with app.app_context():
-        db.session.add(SensorReading(source='esp32', temperature=data['temperature'], humidity=data['humidity']))
-        db.session.commit()
-    print(f"✅ Données reçues de l'ESP32: {data}")
+    if not data or 'temperature' not in data or 'humidity' not in data: return jsonify({"error": "Données manquantes"}), 400
+    with data_lock: latest_sensor_data["esp32"] = {"temperature": data['temperature'],"humidity": data['humidity'],"timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    with app.app_context(): db.session.add(SensorReading(source='esp32', temperature=data['temperature'], humidity=data['humidity'])); db.session.commit()
     return jsonify({"status": "success"}), 200
 
 @app.route('/alldata', methods=['GET'])
 def get_all_data():
     period = request.args.get('period', 'day')
-    if period == 'week':
-        delta = timedelta(days=7)
-    elif period == 'month':
-        delta = timedelta(days=30)
-    else:
-        delta = timedelta(days=1)
+    delta = timedelta(days={'day': 1, 'week': 7, 'month': 30}.get(period, 1))
     since = datetime.utcnow() - delta
-
     sensehat_readings = SensorReading.query.filter(SensorReading.source == 'sensehat', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
     esp32_readings = SensorReading.query.filter(SensorReading.source == 'esp32', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
-
     datasets = [
         {"label": "Temp. Intérieure (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in sensehat_readings], "borderColor": "#ef476f", "fill": False, "yAxisID": "y_temp"},
         {"label": "Temp. SDB (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in esp32_readings], "borderColor": "#fca311", "fill": False, "yAxisID": "y_temp"},
@@ -200,13 +185,26 @@ def get_all_data():
     ]
     return jsonify({"datasets": datasets})
 
+@app.route('/config_data')
+def get_config_data():
+    response_data = {
+        "sunrise": None, "sunset": None,
+        "temp_ideal_min": TEMP_IDEAL_MIN, "temp_ideal_max": TEMP_IDEAL_MAX,
+    }
+    if LocationInfo and sun:
+        try:
+            city = LocationInfo("MyCity", "MyRegion", "Europe/Paris", config.LATITUDE, config.LONGITUDE)
+            s = sun(city.observer, date=datetime.now())
+            response_data["sunrise"] = s['sunrise'].isoformat()
+            response_data["sunset"] = s['sunset'].isoformat()
+        except Exception as e:
+            print(f"⚠️ AVERTISSEMENT: Impossible de calculer les données astrales : {e}")
+    return jsonify(response_data)
+
 @app.route('/plants', methods=['GET'])
 def get_plants():
     plants = Plant.query.all()
-    plants_data = []
-    for p in plants:
-        info = calculate_watering_info(p)
-        plants_data.append({"id": p.id, "name": p.name, "type_name": p.type, "type_id": p.type, **info})
+    plants_data = [ {"id": p.id, "name": p.name, "type_name": p.type, "type_id": p.type, **calculate_watering_info(p)} for p in plants]
     return jsonify(plants_data)
 
 @app.route('/plant_types', methods=['GET'])
@@ -247,34 +245,30 @@ def refresh_all_sensors():
         url = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            with data_lock:
-                latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
-            print("🔄 Météo rafraîchie manuellement.")
-    except Exception as e:
-        print(f"❌ Erreur de rafraîchissement manuel de la météo: {e}")
+            data = response.json(); print("🔄 Météo rafraîchie manuellement.")
+            with data_lock: latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
+    except Exception as e: print(f"❌ Erreur de rafraîchissement manuel de la météo: {e}")
     if sense:
-        temp, humidity, pressure = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
+        temp, hum, pres = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
         cpu_temp_str = os.popen("vcgencmd measure_temp").readline()
         cpu_temp = float(cpu_temp_str.replace("temp=", "").replace("'C\n", ""))
-        temp_corrected = temp - ((cpu_temp - temp) / 2.5)
-        with data_lock:
-            latest_sensor_data["sensehat"] = {"temperature": temp_corrected, "humidity": humidity, "pressure": pressure, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        temp_corr = temp - ((cpu_temp - temp) / 2.5)
+        with data_lock: latest_sensor_data["sensehat"] = {"temperature": temp_corr, "humidity": hum, "pressure": pres, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         print("🔄 Sense HAT rafraîchi manuellement.")
     try:
         esp32_url = f"http://{config.ESP32_IP}/read_sensor"
         response = requests.get(esp32_url, timeout=5)
-        if response.status_code == 200:
-            print("🔄 Ordre de lecture envoyé à l'ESP32.")
-    except Exception as e:
-        print(f"❌ Impossible de contacter l'ESP32 pour rafraîchissement: {e}")
+        if response.status_code == 200: print("🔄 Ordre de lecture envoyé à l'ESP32.")
+    except Exception as e: print(f"❌ Impossible de contacter l'ESP32 pour rafraîchissement: {e}")
     time.sleep(2)
     with data_lock:
         return jsonify(latest_sensor_data)
 
 # ======================= 6. DÉMARRAGE =======================
 if __name__ == '__main__':
-    # On ne lance PAS db.create_all() pour ne pas interférer avec la base existante.
+    with app.app_context():
+        # On ne crée pas les tables car on utilise une base de données existante
+        pass
     print("🚀 Lancement du thread d'enregistrement météo...")
     threading.Thread(target=weather_thread_func, daemon=True).start()
     print("🚀 Lancement du thread de lecture du Sense HAT...")
