@@ -1,14 +1,14 @@
 #include <WiFi.h>
-#include <WebServer.h>   // On réintègre le serveur web
+#include <WebServer.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
-#include "DHT.h"
+#include <ArduinoJson.h> // Pour formater les données
+#include "DHT.h"         // Votre code de capteur
 #include <vector>
 
 // ------------------- À MODIFIER -------------------
-const char* ssid = "LE_NOM_DE_VOTRE_WIFI";
-const char* password = "LE_MOT_DE_PASSE_DE_VOTRE_WIFI";
-const char* server_ip = "192.168.1.199"; // L'IP de votre Raspberry Pi
+const char* ssid = "Bbox-96952397-Plus";
+const char* password = "4DzKZPWM9C4T5cCHvV";
+const char* server_ip = "192.168.1.199"; // <-- L'ADRESSE IP DE VOTRE RASPBERRY PI
 // ----------------------------------------------------
 
 const char* server_endpoint = "/esp32/data"; 
