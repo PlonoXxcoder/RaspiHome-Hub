@@ -6,15 +6,18 @@ import * as api from './api.js';
 import * as ui from './ui.js';
 
 // --- FONCTIONS DE CHARGEMENT DES DONNÉES ---
-async function loadWeatherData() { try { const data = await api.getWeatherData(); ui.displayWeatherData(data); } catch (e) { console.error("Erreur chargement météo:", e); } } //
-async function loadInteriorData() { try { const data = await api.getSenseHATData(); ui.displaySenseHATData(data); } catch (e) { console.error("Erreur chargement données intérieures:", e); } } //
-async function loadDistantData() { try { const data = await api.getESP32Data(); ui.displayESP32Data(data); } catch (e) { console.error("Erreur chargement données distantes:", e); } } //
-async function loadChart(period = 'day') { try { const [chartData, configData] = await Promise.all([api.getChartData(period), api.getConfigData()]); ui.createChart(chartData, configData); } catch (e) { console.error("Erreur chargement graphique:", e); } } //
-async function loadPlantData() { try { const [plants, types] = await Promise.all([api.getPlants(), api.getPlantTypes()]); ui.populatePlantTypes(types); ui.displayPlants(plants); } catch (e) { console.error("Erreur chargement plantes:", e); } } //
-async function loadSmartRecommendation() { try { const data = await api.getSmartRecommendation(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement recommandation:", e); } } //
-async function loadRandomTip() { try { const data = await api.getRandomTip(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement astuce aléatoire:", e); } } //
+async function loadWeatherData() { try { const data = await api.getWeatherData(); ui.displayWeatherData(data); } catch (e) { console.error("Erreur chargement météo:", e); } }
+async function loadInteriorData() { try { const data = await api.getSenseHATData(); ui.displaySenseHATData(data); } catch (e) { console.error("Erreur chargement données intérieures:", e); } }
+async function loadDistantData() { try { const data = await api.getESP32Data(); ui.displayESP32Data(data); } catch (e) { console.error("Erreur chargement données distantes:", e); } }
+async function loadChart(period = '24h') { try { const [chartData, configData] = await Promise.all([api.getChartData(period), api.getConfigData()]); ui.createChart(chartData, configData); } catch (e) { console.error("Erreur chargement graphique:", e); } }
+async function loadPlantData() { try { const [plants, types] = await Promise.all([api.getPlants(), api.getPlantTypes()]); ui.populatePlantTypes(types); ui.displayPlants(plants); } catch (e) { console.error("Erreur chargement plantes:", e); } }
+async function loadSmartRecommendation() { try { const data = await api.getSmartRecommendation(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement recommandation:", e); } }
+async function loadRandomTip() { try { const data = await api.getRandomTip(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement astuce aléatoire:", e); } }
 
-// --- NOUVEAU : Chargement Tâches V1.5 ---
+/**
+ * NOUVEAU V1.5
+ * Charge les données des tâches et demande à l'UI de les afficher.
+ */
 async function loadTaskData() {
     try {
         const tasks = await api.getTasks();
@@ -24,7 +27,10 @@ async function loadTaskData() {
     }
 }
 
-// --- NOUVEAU : Chargement Astuce Météo V1.6 ---
+/**
+ * NOUVEAU V1.6
+ * Charge l'astuce météo contextuelle.
+ */
 async function loadWeatherTip() {
     try {
         const data = await api.getWeatherTip();
@@ -36,27 +42,42 @@ async function loadWeatherTip() {
 
 
 // --- FONCTIONS DE GESTION DES ÉVÉNEMENTS ---
-async function handleManualRefresh() { //
+
+/**
+ * MODIFIÉ V1.7
+ * Gère le rafraîchissement manuel.
+ * Force les capteurs à écrire en BDD, puis recharge les données côté client.
+ */
+async function handleManualRefresh() {
     const refreshButtonIcon = document.querySelector('#refresh-weather-btn i');
     refreshButtonIcon.classList.add('spinning');
     try {
-        const allData = await api.refreshAllSensors();
-        if (allData.weather) ui.displayWeatherData(allData.weather);
-        if (allData.sensehat) ui.displaySenseHATData(allData.sensehat);
-        if (allData.esp32) ui.displayESP32Data(allData.esp32);
+        // 1. Demande au serveur de forcer la lecture des capteurs (qui écrivent en BDD)
+        await api.refreshAllSensors();
+        
+        // 2. Attend 2 secondes (laissé dans serveur_temp.py) que l'ESP32 réponde
+        
+        // 3. Recharge toutes les données côté client (météo, capteurs BDD, astuces BDD)
+        // Note : le 'await' n'est pas nécessaire ici car on veut que tout se charge en parallèle
+        loadWeatherData();
+        loadInteriorData();
+        loadDistantData();  // Recharge depuis /esp32_latest (qui lit la BDD)
+        loadWeatherTip();   // Recharge l'astuce SDB depuis la BDD
+        loadSmartRecommendation(); // Met à jour l'alerte chauffage
+        
     } catch (error) {
         console.error("Erreur lors du rafraîchissement manuel:", error);
     } finally {
-        refreshButtonIcon.classList.remove('spinning');
+        // S'assure que l'icône arrête de tourner même si le rafraîchissement de l'ESP échoue
+        setTimeout(() => refreshButtonIcon.classList.remove('spinning'), 500);
     }
 }
 
 function setupEventListeners() {
-    document.getElementById('refresh-weather-btn').addEventListener('click', handleManualRefresh); //
-    // MODIFIÉ V1.6 : Utilise la valeur du sélecteur
-    document.getElementById('period-select').addEventListener('change', (e) => loadChart(e.target.value)); //
+    document.getElementById('refresh-weather-btn').addEventListener('click', handleManualRefresh);
+    document.getElementById('period-select').addEventListener('change', (e) => loadChart(e.target.value));
     
-    // --- GESTION MODALE AJOUT PLANTE (EXISTANTE) ---
+    // --- GESTION MODALE AJOUT PLANTE (Logique existante) ---
     document.getElementById('show-add-plant-modal-btn').addEventListener('click', () => {
         ui.openAddPlantModal();
     });
@@ -91,7 +112,7 @@ function setupEventListeners() {
         loadPlantData();
     });
 
-    // --- GESTION MODALE MODIFICATION PLANTE (EXISTANTE) ---
+    // --- GESTION MODALE MODIFICATION PLANTE (Logique existante) ---
     document.getElementById('edit-plant-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('edit-plant-id').value;
@@ -102,7 +123,7 @@ function setupEventListeners() {
         loadPlantData();
     });
 
-    // --- GESTION CLICS CARTES PLANTES (EXISTANT) ---
+    // --- GESTION CLICS CARTES PLANTES (Logique existante) ---
     document.getElementById('plant-container').addEventListener('click', async (e) => {
         const button = e.target.closest('button.action-btn, button.water-button');
         if (!button) return;
@@ -178,7 +199,7 @@ function setupEventListeners() {
 }
 
 // --- INITIALISATION DE L'APPLICATION (MODIFIÉE V1.6) ---
-async function initializeApp() { //
+async function initializeApp() {
     await Promise.all([
         loadSmartRecommendation(),
         loadWeatherTip(), // Ajout de l'astuce météo
@@ -187,25 +208,29 @@ async function initializeApp() { //
         loadDistantData(),
         loadPlantData(),
         loadTaskData(), // Ajout du chargement des tâches
-        loadChart('24h') // MODIFIÉ : 'day' devient '24h'
+        loadChart('24h') // Modifié pour correspondre au HTML ('24h' au lieu de 'day')
     ]);
     setupEventListeners();
     
-    // Rafraîchit les capteurs et l'astuce météo contextuelle
+    // Rafraîchit les capteurs (qui lisent la BDD) et l'astuce météo contextuelle
     setInterval(() => { 
         loadInteriorData(); 
         loadDistantData();
         loadWeatherTip(); // Ajouté à la boucle de 60s
-    }, 60000); //
+    }, 60000); 
     
     // Rafraîchit l'astuce principale (alertes)
     setInterval(() => {
         const currentIcon = document.getElementById('smart-recommendation-icon').className;
+        
         // Ne pas rafraîchir si une alerte est déjà affichée (plante, tâche, ou chauffage)
         if (!currentIcon.includes('fa-tint') && !currentIcon.includes('fa-broom') && !currentIcon.includes('fa-fire')) {
             loadRandomTip(); 
+        } else {
+            // Si une alerte est affichée, on la revérifie au cas où elle serait résolue
+            loadSmartRecommendation();
         }
-    }, 30000); //
+    }, 30000);
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp);
