@@ -226,10 +226,17 @@ Voici les fonctionnalités sur lesquelles nous travaillons activement pour les p
    - [X] **Mode Édition Avancé** (Correction du layout + modification des intervalles d'arrosage).
    - [X] **Affichage "Dernière MàJ"** et codes couleurs sur les cartes météo.
    - [X] Migration de la DB vers un schéma `int_`/`ext_`.
-   - [ ]** Déploiement Fiable** : Remplacement du lancement manuel par un service systemd avec redémarrage automatique.
+   - [X] ** Déploiement Fiable** : Remplacement du lancement manuel par un service systemd avec redémarrage automatique.
+     
+- **[ ] v1.5 : Gestion des taches ménagere**
+   - [ ] **Fondation Backend**: Création d'une nouvelle table tasks dans la base de données et des routes API (/tasks, /task/complete, /task/add) pour gérer le cycle de vie complet des tâches ménagères.
+   - [ ] **Interface de Suivi Visuel**: Ajout d'une nouvelle section sur le tableau de bord avec des "cartes de tâches", chacune dotée d'une barre de progression colorée (rouge/jaune/vert) indiquant l'urgence.
+   - [ ] **Notifications Proactives**: Le thread de notification Telegram enverra des rappels non seulement pour les plantes, mais aussi pour les tâches ménagères en retard.
+   - [ ] **Intégration Intelligente**: Les tâches en retard apparaissent en haut de la liste et sont affichées en priorité dans le bandeau d'astuces, à la place des conseils généraux
+   - [ ] **Gestion Complète via l'UI**: Création de formulaires pour ajouter et marquer les tâches comme terminées directement depuis l'interface, sans toucher au code.
 
 ### 🚀 Prochaines Étapes
-- [ ] **Alertes Météo avancées ** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur), en cas de dépassement (ex: "Alerte : Température intérieure trop élevée !").
+- [ ] **Alertes Météo avancées** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur), en cas de dépassement (ex: "Alerte : Température intérieure trop élevée !").
 - [ ] **Page Historique Détaillée** : Créer une nouvelle page avec un sélecteur de dates (calendrier), un tableau de données triable et un bouton d'export CSV.
 - [ ] **Indicateurs Visuels** : Remplacer les pourcentages d'humidité par des **jauges circulaires** et ajouter des mini-graphiques "sparklines" dans les cartes météo.
 - [ ] **Contrôle Salle de Bain** : Objectif d'ajouter un capteur dans la SDB pour contrôler l'aération.
