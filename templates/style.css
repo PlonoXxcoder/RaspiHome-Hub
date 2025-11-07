@@ -144,23 +144,122 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
 
 #myChart { margin-top: 1.5em; max-height: 400px; }
 
-.search-container { position: relative; margin-bottom: 1.5rem; }
-#plant-search-input { padding-left: 40px; }
-.search-container i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-color-light); }
-#plant-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-.plant { background: var(--card-bg-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: var(--shadow); animation: fadeIn 0.5s; }
-.plant-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--border-color); }
-.plant-header-title { font-weight: 600; }
-.plant-actions { display: flex; gap: 5px; }
-.action-btn { background: none; border: none; color: var(--text-color-light); opacity: 0.7; transition: 0.2s; padding: 5px; cursor: pointer; }
-.action-btn:hover { opacity: 1; transform: scale(1.15); color: var(--primary-color); }
-.action-btn.delete:hover { color: var(--danger-color); }
-.plant-body { padding: 15px; }
-.plant-body p { margin: 0.5rem 0; }
-.water-progress-bar { width: 100%; background-color: var(--border-color); border-radius: 5px; height: 10px; overflow: hidden; margin: 10px 0; }
-.water-progress { height: 100%; background-color: var(--success-color); transition: width 0.5s ease; border-radius: 5px; }
-.water-button { background-color: var(--success-color); color: white; width: 100%; margin-top: 1rem; }
+/* --- STYLES DES PLANTES (AMÉLIORÉS) --- */
+.search-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+#plant-search-input {
+    padding-left: 40px;
+}
+.search-container i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-light);
+}
 
+#plant-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* LA MAGIE COMMENCE ICI */
+.plant {
+    background: var(--card-bg-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    
+    /* On définit une couleur de base pour l'ombre (vert par défaut) */
+    --plant-shadow-color: var(--success-color);
+    
+    /* Ombre de base, utilisant notre variable de couleur */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07),
+                0 0 8px rgba(var(--plant-shadow-color), 0); /* Ombre colorée, cachée par défaut */
+
+    animation: fadeIn 0.5s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.plant:hover {
+    transform: translateY(-5px) scale(1.02); /* Animation au survol */
+    
+    /* Ombre colorée qui s'active au survol */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1),
+                0 0 15px rgba(var(--plant-shadow-color), 0.6);
+}
+
+.plant-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.5s ease;
+}
+
+.plant-header-title {
+    font-weight: 600;
+}
+
+.plant-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: var(--text-color-light);
+    opacity: 0.7;
+    transition: 0.2s;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+    color: var(--primary-color);
+}
+
+.action-btn.delete:hover {
+    color: var(--danger-color);
+}
+
+.plant-body {
+    padding: 15px;
+}
+
+.plant-body p {
+    margin: 0.5rem 0;
+}
+
+.water-progress-bar {
+    width: 100%;
+    background-color: var(--border-color);
+    border-radius: 5px;
+    height: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.water-progress {
+    height: 100%;
+    background-color: var(--status-color, var(--success-color)); /* Utilise la couleur de statut */
+    transition: width 0.5s ease, background-color 0.5s ease;
+    border-radius: 5px;
+}
+
+.water-button {
+    background-color: var(--success-color);
+    color: white;
+    width: 100%;
+    margin-top: 1rem;
+}
 /* --- MODALES --- */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.3s; }
 .modal-overlay.active { display: flex; }
@@ -178,3 +277,18 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
     .data-grid { grid-template-columns: 1fr; }
 }
 
+#animated-weather-icon-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 10em; /* Hauteur fixe pour le conteneur */
+    font-size: 10px; /* Contrôle la taille de base des icônes */
+    color: var(--text-color);
+    margin-bottom: 1rem;
+}
+.weather-description-text {
+    font-size: 1.2em;
+    font-weight: 500;
+    display: block;
+    text-align: center;
+}

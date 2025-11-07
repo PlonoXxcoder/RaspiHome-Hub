@@ -5,6 +5,7 @@
 
 let chartInstance = null;
 const editModalOverlay = document.getElementById('edit-plant-modal');
+const addModalOverlay = document.getElementById('add-plant-modal');
 const editForm = document.getElementById('edit-plant-form');
 let activeModal = null;
 
@@ -24,6 +25,21 @@ export function closeModal() {
     }
 }
 
+export function openAddPlantModal() {
+    if (addModalOverlay) {
+        document.getElementById('add-plant-form-new').reset();
+        document.getElementById('new-type-fields').style.display = 'none';
+        document.getElementById('new-plant-type-select').value = "";
+        const newTypeNameInput = document.getElementById('new-type-name');
+        const newTypeSummerInput = document.getElementById('new-type-summer');
+        const newTypeWinterInput = document.getElementById('new-type-winter');
+        newTypeNameInput.required = false;
+        newTypeSummerInput.required = false;
+        newTypeWinterInput.required = false;
+        openModal(addModalOverlay);
+    }
+}
+
 document.querySelectorAll('.modal-overlay').forEach(modal => {
     const closeButton = modal.querySelector('.modal-close');
     if (closeButton) closeButton.addEventListener('click', closeModal);
@@ -35,8 +51,12 @@ document.querySelectorAll('.modal-overlay').forEach(modal => {
 // ======================= AFFICHAGE (RENDERING) =======================
 
 export function displaySmartRecommendation(data) {
-    document.getElementById('smart-recommendation-text').textContent = data.message;
-    document.getElementById('smart-recommendation-icon').className = `fa-solid ${data.icon}`;
+    const textElement = document.getElementById('smart-recommendation-text');
+    const iconElement = document.getElementById('smart-recommendation-icon');
+    if (textElement && iconElement) {
+        textElement.textContent = data.message;
+        iconElement.className = `fa-solid ${data.icon}`;
+    }
 }
 
 export function displayWeatherData(data) {
@@ -46,9 +66,32 @@ export function displayWeatherData(data) {
     document.getElementById('weather-humidity').textContent = `${data.humidity.toFixed(1)} %`;
     document.getElementById('weather-pressure').textContent = `${data.pressure.toFixed(0)} hPa`;
     document.getElementById('weather-description').textContent = data.description;
-    const iconElement = document.getElementById('weather-icon');
-    iconElement.src = `https://openweathermap.org/img/wn/${data.icon}@2x.png`;
-    iconElement.style.display = 'block';
+
+    const iconContainer = document.getElementById('animated-weather-icon-container');
+    if (!iconContainer) {
+        console.error("Erreur critique : L'élément 'animated-weather-icon-container' est introuvable dans index.html !");
+        return;
+    }
+    const weatherIconCode = data.icon.slice(0, 2);
+
+    iconContainer.querySelectorAll('.icon').forEach(icon => {
+        icon.style.display = 'none';
+    });
+
+    let iconToShow = null;
+    switch (weatherIconCode) {
+        case '01': iconToShow = iconContainer.querySelector('.sunny'); break;
+        case '02': case '03': case '04': iconToShow = iconContainer.querySelector('.cloudy'); break;
+        case '09': iconToShow = iconContainer.querySelector('.sun-shower'); break;
+        case '10': iconToShow = iconContainer.querySelector('.rainy'); break;
+        case '11': iconToShow = iconContainer.querySelector('.thunder-storm'); break;
+        case '13': iconToShow = iconContainer.querySelector('.flurries'); break;
+        default: iconToShow = iconContainer.querySelector('.cloudy'); break;
+    }
+
+    if (iconToShow) {
+        iconToShow.style.display = 'inline-block';
+    }
 }
 
 export function displaySenseHATData(data) {
@@ -77,54 +120,28 @@ export function displayESP32Data(data) {
     }
 }
 
-export function createChart(chartData, configData) { // On passe maintenant les données de config
+export function createChart(chartData, configData) {
     const ctx = document.getElementById('myChart').getContext('2d');
     if (chartInstance) {
         chartInstance.destroy();
     }
-
-    // --- LOGIQUE POUR LES ZONES NUIT/JOUR ---
+    let timeUnit = 'hour';
+    if (chartData.datasets.length > 0 && chartData.datasets[0].data.length > 1) {
+        const firstPoint = new Date(chartData.datasets[0].data[0].x);
+        const lastPoint = new Date(chartData.datasets[0].data[chartData.datasets[0].data.length - 1].x);
+        const diffDays = (lastPoint - firstPoint) / (1000 * 60 * 60 * 24);
+        if (diffDays > 2) { timeUnit = 'day'; }
+    }
     const nightZones = {};
-    if (configData.sunrise && configData.sunset) {
-        nightZones.nightStart = {
-            type: 'box',
-            xMin: new Date(new Date().setHours(0,0,0,0)),
-            xMax: new Date(configData.sunrise),
-            backgroundColor: 'rgba(100, 100, 100, 0.1)',
-            borderColor: 'transparent'
-        };
-        nightZones.nightEnd = {
-            type: 'box',
-            xMin: new Date(configData.sunset),
-            xMax: new Date(new Date().setHours(23,59,59,999)),
-            backgroundColor: 'rgba(100, 100, 100, 0.1)',
-            borderColor: 'transparent'
-        };
+    if (configData && configData.sunrise && configData.sunset) {
+        nightZones.nightStart = { type: 'box', xMin: new Date(new Date().setHours(0,0,0,0)), xMax: new Date(configData.sunrise), backgroundColor: 'rgba(100, 100, 100, 0.1)', borderColor: 'transparent' };
+        nightZones.nightEnd = { type: 'box', xMin: new Date(configData.sunset), xMax: new Date(new Date().setHours(23,59,59,999)), backgroundColor: 'rgba(100, 100, 100, 0.1)', borderColor: 'transparent' };
     }
-
-    // --- LOGIQUE POUR LES LIGNES DE SEUIL ---
     const tempThresholds = {};
-    if(configData.temp_ideal_min) {
-        tempThresholds.min = {
-            type: 'line',
-            yMin: configData.temp_ideal_min,
-            yMax: configData.temp_ideal_min,
-            borderColor: 'rgba(0, 255, 0, 0.3)',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            label: { content: `${configData.temp_ideal_min}°C`, display: true, position: 'start' }
-        };
-        tempThresholds.max = {
-            type: 'line',
-            yMin: configData.temp_ideal_max,
-            yMax: configData.temp_ideal_max,
-            borderColor: 'rgba(255, 0, 0, 0.3)',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            label: { content: `${configData.temp_ideal_max}°C`, display: true, position: 'start' }
-        };
+    if(configData && configData.temp_ideal_min) {
+        tempThresholds.min = { type: 'line', yMin: configData.temp_ideal_min, yMax: configData.temp_ideal_min, borderColor: 'rgba(0, 255, 0, 0.3)', borderWidth: 2, borderDash: [5, 5], label: { content: `${configData.temp_ideal_min}°C`, display: true, position: 'start' } };
+        tempThresholds.max = { type: 'line', yMin: configData.temp_ideal_max, yMax: configData.temp_ideal_max, borderColor: 'rgba(255, 0, 0, 0.3)', borderWidth: 2, borderDash: [5, 5], label: { content: `${configData.temp_ideal_max}°C`, display: true, position: 'start' } };
     }
-
     chartInstance = new Chart(ctx, {
         type: 'line',
         data: { datasets: chartData.datasets },
@@ -135,30 +152,21 @@ export function createChart(chartData, configData) { // On passe maintenant les 
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: 'hour', tooltipFormat: 'dd MMM HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd MMM' } },
-                    adapters: { date: { locale: 'fr' } },
+                    time: { unit: timeUnit, tooltipFormat: 'dd MMM HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd MMM' }},
+                    adapters: { date: { locale: 'fr' }},
                     title: { display: true, text: 'Date / Heure' }
                 },
                 y_temp: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Température (°C)' } },
                 y_hum: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Humidité (%)' }, grid: { drawOnChartArea: false } }
             },
             plugins: {
-                // Configuration du Zoom
-                zoom: {
-                    pan: { enabled: true, mode: 'x' },
-                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
-                },
-                // Configuration des Annotations (seuils et zones)
-                annotation: {
-                    annotations: {
-                        ...nightZones,
-                        ...tempThresholds
-                    }
-                }
+                zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }},
+                annotation: { annotations: { ...nightZones, ...tempThresholds }}
             }
         }
     });
 }
+
 export function displayPlants(plants) {
     const container = document.getElementById('plant-container');
     container.innerHTML = '';
@@ -166,15 +174,29 @@ export function displayPlants(plants) {
         container.innerHTML = '<p style="grid-column: 1 / -1;">Aucune plante trouvée.</p>';
         return;
     }
+
     plants.forEach(plant => {
         const plantCard = document.createElement('div');
         plantCard.className = 'plant';
+        
         const daysSinceWatered = plant.days_since_watered;
         const waterFrequency = plant.watering_frequency;
+
         const percentage = Math.max(0, 100 - (daysSinceWatered / waterFrequency) * 100);
-        let statusColor = 'var(--success-color)';
-        if (percentage < 30) statusColor = 'var(--warning-color)';
-        if (percentage <= 0) statusColor = 'var(--danger-color)';
+        
+        // --- NOUVELLE LOGIQUE DE COULEUR ---
+        let statusColorVar = 'var(--success-color)'; // Vert par défaut
+        if (percentage < 30) {
+            statusColorVar = 'var(--warning-color)'; // Jaune/Orange si le temps presse
+        }
+        if (percentage <= 0) {
+            statusColorVar = 'var(--danger-color)'; // Rouge si c'est en retard
+        }
+
+        // On applique la couleur à la carte pour l'ombre via une variable CSS
+        plantCard.style.setProperty('--plant-shadow-color', statusColorVar);
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
+        
         plantCard.innerHTML = `
             <div class="plant-header">
                 <span class="plant-header-title">${plant.name}</span>
@@ -186,31 +208,39 @@ export function displayPlants(plants) {
             <div class="plant-body">
                 <p><strong>Type :</strong> ${plant.type_name}</p>
                 <p><strong>Dernier arrosage :</strong> Il y a ${daysSinceWatered} jour(s)</p>
-                <div class="water-progress-bar"><div class="water-progress" style="width: ${percentage.toFixed(1)}%; background-color: ${statusColor};"></div></div>
+                <div class="water-progress-bar">
+                    <div class="water-progress" style="width: ${percentage.toFixed(1)}%; background-color: ${statusColorVar};"></div>
+                </div>
                 <button class="water-button" data-plant-id="${plant.id}">Arroser maintenant</button>
             </div>`;
         container.appendChild(plantCard);
     });
 }
-
 export function populatePlantTypes(types) {
     if (!types) return;
-    const addSelect = document.getElementById('add-plant-type');
     const editSelect = document.getElementById('edit-plant-type');
-    addSelect.innerHTML = '<option value="" selected disabled>Choisir un type...</option>';
-    editSelect.innerHTML = '';
-    types.forEach(type => {
-        const option = `<option value="${type.id}">${type.name}</option>`;
-        addSelect.innerHTML += option;
-        editSelect.innerHTML += option;
-    });
+    const newAddSelect = document.getElementById('new-plant-type-select');
+    if (editSelect) {
+        editSelect.innerHTML = '';
+        types.forEach(type => {
+            const option = `<option value="${type.id}">${type.name}</option>`;
+            editSelect.innerHTML += option;
+        });
+    }
+    if (newAddSelect) {
+        newAddSelect.innerHTML = '<option value="" disabled selected>Choisir un type existant</option><option value="--new--">--- Ajouter un nouveau type ---</option>';
+        types.forEach(type => {
+            const option = `<option value="${type.id}">${type.name}</option>`;
+            newAddSelect.innerHTML += option;
+        });
+    }
 }
 
 export function openEditPlantModal(plant) {
-    editForm.querySelector('#edit-plant-id').value = plant.id;
-    editForm.querySelector('#edit-plant-name').value = plant.name;
-    editForm.querySelector('#edit-plant-type').value = plant.type_id;
-    const lastWateredDate = new Date(plant.last_watered_date).toISOString().split('T')[0];
-    editForm.querySelector('#edit-plant-last-watered').value = lastWateredDate;
-    openModal(editModalOverlay);
+    if (editForm) {
+        editForm.querySelector('#edit-plant-id').value = plant.id;
+        editForm.querySelector('#edit-plant-name').value = plant.name;
+        editForm.querySelector('#edit-plant-type').value = plant.type_id;
+        openModal(editModalOverlay);
+    }
 }
