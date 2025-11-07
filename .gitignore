@@ -11,3 +11,7 @@ __pycache__/
 
 # Dossier d'instance de Flask
 instance/
+
+# Fichiers de test et d'administration
+test_notification.py
+create_admin.py

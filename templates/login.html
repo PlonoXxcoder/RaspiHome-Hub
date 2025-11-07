@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - RaspiHome</title>
+    <!-- Google Fonts pour le style de police de l'exemple -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Slab" rel="stylesheet">
+    
+    <style>
+        /* --- DÉBUT DU CSS --- */
+        /* Variables de l'exemple original converties en CSS */
+        :root {
+            --background-color: #F15A5C;
+            --darkened-background-color: #C13A3C; /* Couleur assombrie pour l'animation */
+            --button-color: #7E5AF1;
+            --easing-function: cubic-bezier(.06, .63, 0, 1);
+            --animation-duration: 1s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--background-color);
+            font-family: 'Roboto Slab', serif;
+            color: white;
+            /* Centre le contenu verticalement et horizontalement */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Classe pour empêcher les transitions au chargement de la page */
+        .preload * {
+            transition: none !important;
+        }
+
+        /* --- Style du conteneur principal --- */
+        .login--container {
+            width: 600px;
+            position: relative;
+        }
+
+        /* --- Style des éléments du formulaire --- */
+        label {
+            display: block;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.7em;
+            margin-bottom: 0.35em;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            border: none;
+            padding: 0.5em;
+            border-radius: 2px;
+            margin-bottom: 0.5em;
+            color: #333;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            box-shadow: inset -1px -1px 3px rgba(0, 0, 0, .3);
+        }
+
+        button {
+            padding: 0.5em 1.5em;
+            border: none;
+            border-radius: 2px;
+            background-color: var(--button-color);
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.25);
+            color: white;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.45);
+            cursor: pointer;
+        }
+        
+        small {
+            font-size: 1em;
+        }
+
+        .login--login-submit {
+            float: right;
+        }
+
+        /* --- Animation de bascule (partie droite) --- */
+        .login--toggle-container {
+            position: absolute;
+            background-color: var(--background-color);
+            right: 0;
+            top: 0;
+            line-height: 2.5em;
+            width: 50%;
+            height: 120px;
+            text-align: right;
+            cursor: pointer;
+            transform: perspective(1000px) translateZ(1px); /* translateZ pour corriger un bug de rendu */
+            transform-origin: 0% 0%;
+            transition: all var(--animation-duration) var(--easing-function);
+            backface-visibility: hidden;
+            padding: 0.5em;
+        }
+
+        .js-toggle-login {
+            font-size: 4em;
+            text-decoration: underline;
+        }
+        
+        /* État actif : quand le panneau de connexion est visible */
+        .login--active .login--toggle-container {
+            transform: perspective(1000px) rotateY(180deg);
+            background-color: var(--darkened-background-color);
+        }
+
+        /* --- Conteneurs des champs (partie gauche) --- */
+        .login--username-container, .login--password-container {
+            float: left;
+            background-color: var(--background-color);
+            width: 50%;
+            height: 120px;
+            padding: .5em;
+        }
+        
+        .login--username-container {
+            transform-origin: 100% 0%;
+            transform: perspective(1000px) rotateY(180deg);
+            transition: all var(--animation-duration) var(--easing-function);
+            background-color: var(--darkened-background-color);
+            backface-visibility: hidden;
+        }
+        
+        /* État actif : fait apparaître le champ username */
+        .login--active .login--username-container {
+            transform: perspective(1000px) rotateY(0deg);
+            background-color: var(--background-color);
+        }
+
+        /* Pour gérer le message d'erreur Flask */
+        .error-banner {
+            background-color: #ff4d4d;
+            color: white;
+            padding: 10px;
+            border-radius: 3px;
+            text-align: center;
+            margin-bottom: 1em;
+        }
+        /* --- FIN DU CSS --- */
+    </style>
+</head>
+<body>
+
+    <!--
+        La classe "preload" est retirée par JavaScript pour que les animations
+        ne se déclenchent pas au chargement initial de la page.
+    -->
+    <div class="login--container preload">
+
+        <!-- Afficher les messages d'erreur Flask -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="error-banner">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" class="login--form">
+            <div class="login--username-container">
+                <label for="username">Nom d'utilisateur</label>
+                <input type="text" id="username" name="username" placeholder="Username" required autofocus>
+            </div>
+
+            <div class="login--password-container">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" placeholder="Password" required>
+                <!-- Le bouton est maintenant à l'intérieur du conteneur du mot de passe -->
+                <button type="submit" class="login--login-submit">Se connecter</button>
+            </div>
+        </form>
+
+        <div class="login--toggle-container">
+            <small>RaspiHome</small>
+            <div class="js-toggle-login">Login</div>
+            <small>Panel</small>
+        </div>
+    </div>
+
+    <!-- jQuery est requis pour le JavaScript ci-dessous -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        // --- DÉBUT DU JAVASCRIPT ---
+        $(function() {
+            // Retire la classe 'preload' pour activer les transitions
+            $(".login--container").removeClass("preload");
+
+            // Déclenche l'animation une fois après 2 secondes
+            let timer = window.setTimeout(function() {
+                $(".login--container").toggleClass("login--active");
+            }, 2000);
+
+            // Gère le clic sur le bouton de bascule
+            $(".js-toggle-login").click(function() {
+                // Annule l'animation automatique si on clique avant
+                window.clearTimeout(timer);
+                $(".login--container").toggleClass("login--active");
+                // Met le focus sur le champ utilisateur quand le panneau s'ouvre
+                $(".login--username-container input").focus();
+            });
+        });
+        // --- FIN DU JAVASCRIPT ---
+    </script>
+</body>
+</html>
