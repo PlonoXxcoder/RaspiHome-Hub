@@ -17,7 +17,7 @@ try:
 except ImportError:
     print("❌ ERREUR: Le fichier config.py est manquant.")
     exit()
-
+    
 try:
     from astral.sun import sun
     from astral import LocationInfo
@@ -98,6 +98,12 @@ class User(UserMixin, db.Model):
     def set_password(self, password): self.password_hash = generate_password_hash(password)
     def check_password(self, password): return check_password_hash(self.password_hash, password)
 
+class Task(db.Model):
+    __tablename__ = 'tasks'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    frequency_days = db.Column(db.Integer, nullable=False, default=7)
+    last_completed = db.Column(db.Date, nullable=False, default=date.today)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
