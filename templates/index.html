@@ -32,9 +32,20 @@
           </div>
         </label>
     </header>
+
+    <nav class="quick-nav">
+        <a href="#section-meteo"><i class="fa-solid fa-cloud-sun"></i> Météo</a>
+        <a href="#section-evolution"><i class="fa-solid fa-chart-line"></i> Évolution</a>
+        <a href="#section-plantes"><i class="fa-solid fa-seedling"></i> Plantes</a>
+        <a href="#section-taches"><i class="fa-solid fa-broom"></i> Tâches</a>
+        <a href="#section-gestion"><i class="fa-solid fa-wrench"></i> Gestion</a>
+    </nav>
     <main class="container">
         <div class="card smart-recommendation-card" id="smart-recommendation-card"><i id="smart-recommendation-icon" class="fa-solid fa-lightbulb"></i><p id="smart-recommendation-text">Chargement...</p></div>
-        <div class="section-header"><h2><i class="fa-solid fa-cloud-sun"></i> Données Météo (Extérieur)</h2><button id="refresh-weather-btn" title="Rafraîchir"><i class="fa-solid fa-rotate-right"></i></button></div>
+        
+        <div class="section-header" id="section-meteo">
+            <h2><i class="fa-solid fa-cloud-sun"></i> Données Météo (Extérieur)</h2><button id="refresh-weather-btn" title="Rafraîchir"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
         <div class="card">
             <div id="animated-weather-icon-container">
                 <div class="icon sun-shower" style="display: none;"><div class="cloud"></div><div class="sun"><div class="rays"></div></div><div class="rain"></div></div>
@@ -71,30 +82,54 @@
                 <small id="distant-timestamp" class="timestamp">...</small>
             </div>
         </div>
-        <h2><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
+
+        <div class="card weather-tip-card" id="weather-tip-card">
+            <i id="weather-tip-icon" class="fa-solid fa-sun"></i>
+            <p id="weather-tip-text">Chargement de l'astuce météo...</p>
+        </div>
+        <h2 id="section-evolution"><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
         <div class="card">
             <label for="period-select">Choisir la période :</label>
             <select id="period-select">
-                <option value="day" selected>Dernières 24 heures</option>
-                <option value="week">Dernière semaine</option>
-                <option value="month">Dernier mois</option>
+                <option value="8h">Dernières 8 heures</option>
+                <option value="24h" selected>Dernières 24 heures</option>
+                <option value="2d">Derniers 2 jours</option>
+                <option value="7d">Dernière semaine</option>
+                <option value="30d">Dernier mois</option>
             </select>
             <canvas id="myChart"></canvas>
         </div>
-        <h2><i class="fa-solid fa-seedling"></i> Vos Plantes</h2>
+        
+        <h2 id="section-plantes"><i class="fa-solid fa-seedling"></i> Vos Plantes</h2>
         <div class="search-container"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="plant-search-input" placeholder="Rechercher une plante..."></div>
         <div id="plant-container"></div>
-        <h2><i class="fa-solid fa-wrench"></i> Gestion</h2>
+        
+        <h2 id="section-taches"><i class="fa-solid fa-broom"></i> Tâches Ménagères</h2>
+        <div id="task-container" class="plant-container">
+            </div>
+
+        <h2 id="section-gestion"><i class="fa-solid fa-wrench"></i> Gestion</h2>
         <div class="card">
             <button id="show-add-plant-modal-btn" class="btn-primary" style="width: 100%; padding: 15px; font-size: 1.2em;"><i class="fa-solid fa-plus"></i> Ajouter une plante</button>
+            
+            <hr style="margin: 2rem 0;">
+
+            <h3><i class="fa-solid fa-plus"></i> Ajouter une tâche ménagère</h3>
+            <form id="add-task-form" class="inline-form">
+                <div style="flex: 2;"><label for="new-task-name">Nom de la tâche</label><input type="text" id="new-task-name" placeholder="Ex: Nettoyer la litière" required></div>
+                <div><label for="new-task-frequency">Fréquence (jours)</label><input type="number" id="new-task-frequency" min="1" placeholder="Ex: 7" required></div>
+                <button type="submit" class="btn-primary" style="align-self: flex-end;">Ajouter Tâche</button>
+            </form>
         </div>
     </main>
+    
     <div class="modal-overlay" id="edit-plant-modal">
         <div class="modal-content"><span class="modal-close">&times;</span><h3>Modifier la Plante</h3><form id="edit-plant-form"><input type="hidden" id="edit-plant-id"><div class="form-group"><label for="edit-plant-name">Nom</label><input type="text" id="edit-plant-name" required></div><div class="form-group"><label for="edit-plant-type">Type</label><select id="edit-plant-type" required></select></div><button type="submit" class="btn-primary">Sauvegarder</button></form></div>
     </div>
     <div class="modal-overlay" id="add-plant-modal">
         <div class="modal-content"><span class="modal-close">&times;</span><h3>Ajouter une nouvelle plante</h3><form id="add-plant-form-new"><div class="form-group"><label for="new-plant-name">Nom de la plante</label><input type="text" id="new-plant-name" required placeholder="Ex: Monstera Deliciosa"></div><div class="form-group"><label for="new-plant-type-select">Type de plante</label><select id="new-plant-type-select" required><option value="--new--">--- Ajouter un nouveau type ---</option></select></div><div id="new-type-fields" style="display: none; background-color: var(--background-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><h4>Créer un nouveau type</h4><div class="form-group"><label for="new-type-name">Nom du nouveau type</label><input type="text" id="new-type-name" placeholder="Ex: Plante tropicale"></div><div class="inline-form"><div><label for="new-type-summer">Arrosage Été (semaines)</label><input type="number" id="new-type-summer" min="1" placeholder="Ex: 1"></div><div><label for="new-type-winter">Arrosage Hiver (semaines)</label><input type="number" id="new-type-winter" min="1" placeholder="Ex: 2"></div></div></div><div class="form-group"><label for="new-plant-next-watering">Date du prochain arrosage</label><input type="date" id="new-plant-next-watering" required></div><button type="submit" class="btn-primary" style="width: 100%;">Enregistrer la plante</button></form></div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>

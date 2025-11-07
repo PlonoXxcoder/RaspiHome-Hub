@@ -65,6 +65,16 @@ export function getPlant(id) {
     return fetchJSON(`/plant/${id}`);
 }
 
+export function getTasks() {
+    return fetchJSON('/tasks');
+}
+
+// --- NOUVEAU : Astuce Météo V1.6 ---
+export function getWeatherTip() {
+    return fetchJSON('/weather_tip');
+}
+
+
 // --- Fonctions de modification des données (POST, PUT, DELETE) ---
 
 export function addPlant(data) {
@@ -105,4 +115,24 @@ export function waterPlant(id) {
 
 export function refreshAllSensors() {
     return fetchJSON('/refresh/all', { method: 'POST' });
+}
+
+export function addTask(data) {
+    return fetchJSON('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+}
+
+export function completeTask(id) {
+    return fetchJSON(`/task/${id}/complete`, {
+        method: 'POST'
+    });
+}
+
+export function deleteTask(id) {
+    return fetchJSON(`/task/${id}`, {
+        method: 'DELETE'
+    });
 }

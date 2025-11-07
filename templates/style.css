@@ -86,6 +86,40 @@ main.container {
     transition: color 0.3s;
 }
 
+/* --- NOUVEAU : BARRE DE NAVIGATION RAPIDE V1.6 --- */
+.quick-nav {
+    position: sticky;
+    top: 70px; /* Se colle juste en dessous du header principal */
+    background-color: var(--card-bg-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 999;
+    padding: 0 1rem;
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto; /* Permet de scroller horizontalement sur mobile */
+    white-space: nowrap; /* Empêche le retour à la ligne */
+}
+.quick-nav a {
+    display: inline-block;
+    padding: 1rem 0.5rem;
+    color: var(--text-color-light);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9em;
+    border-bottom: 3px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+.quick-nav a:hover {
+    color: var(--text-color);
+    border-bottom-color: var(--primary-color);
+}
+.quick-nav a i {
+    margin-right: 0.5em;
+}
+/* ----------------------------------------------- */
+
+
 /* --- INTERRUPTEUR DE THÈME --- */
 .theme-switch { --toggle-size: 25px; --container-width: 5.625em; --container-height: 2.5em; --container-radius: 6.25em; --container-light-bg: #3D7EAE; --container-night-bg: #1D1F2C; --circle-container-diameter: 3.375em; --sun-moon-diameter: 2.125em; --sun-bg: #ECCA2F; --moon-bg: #C4C9D1; --spot-color: #959DB1; --circle-container-offset: calc((var(--circle-container-diameter) - var(--container-height)) / 2 * -1); --stars-color: #fff; --clouds-color: #F3FDFF; --back-clouds-color: #AACADF; --transition: .5s cubic-bezier(0, -0.02, 0.4, 1.25); --circle-transition: .3s cubic-bezier(0, -0.02, 0.35, 1.17); position: relative; }
 .theme-switch, .theme-switch *, .theme-switch *::before, .theme-switch *::after { box-sizing: border-box; margin: 0; padding: 0; font-size: var(--toggle-size); }
@@ -127,7 +161,38 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
 .smart-recommendation-card i { font-size: 1.8em; }
 .smart-recommendation-card p { margin: 0; font-weight: 500; }
 
-.section-header { display: flex; justify-content: space-between; align-items: center; }
+/* --- NOUVEAU : CARTE ASTUCE MÉTÉO V1.6 --- */
+.weather-tip-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: linear-gradient(135deg, #0077B6, #00B4D8);
+    color: white;
+    margin-top: -1rem; /* S'insère juste après la grille de données */
+    margin-bottom: 2rem;
+}
+body.dark-mode .weather-tip-card {
+    background: linear-gradient(135deg, #118ab2, #06d6a0);
+}
+.weather-tip-card i {
+    font-size: 1.8em;
+    opacity: 0.8;
+}
+.weather-tip-card p {
+    margin: 0;
+    font-weight: 500;
+}
+/* ----------------------------------------- */
+
+.section-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    /* MODIFIÉ V1.6 : Ajout de padding pour l'ancre de la nav sticky */
+    padding-top: 90px; 
+    margin-top: -80px; /* Doit être plus petit que le padding-top */
+}
+
 #refresh-weather-btn { background: transparent; border: none; color: var(--text-color-light); font-size: 1.2em; cursor: pointer; }
 #refresh-weather-btn i.spinning { animation: spin 1s linear infinite; }
 
@@ -166,28 +231,21 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
     gap: 1.5rem;
 }
 
-/* LA MAGIE COMMENCE ICI */
+/* Style des cartes de plantes (réutilisé pour les tâches) */
 .plant {
     background: var(--card-bg-color);
     border-radius: 12px;
     border: 1px solid var(--border-color);
     overflow: hidden;
-    
-    /* On définit une couleur de base pour l'ombre (vert par défaut) */
     --plant-shadow-color: var(--success-color);
-    
-    /* Ombre de base, utilisant notre variable de couleur */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07),
-                0 0 8px rgba(var(--plant-shadow-color), 0); /* Ombre colorée, cachée par défaut */
-
+                0 0 8px rgba(var(--plant-shadow-color), 0);
     animation: fadeIn 0.5s;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .plant:hover {
-    transform: translateY(-5px) scale(1.02); /* Animation au survol */
-    
-    /* Ombre colorée qui s'active au survol */
+    transform: translateY(-5px) scale(1.02);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1),
                 0 0 15px rgba(var(--plant-shadow-color), 0.6);
 }
@@ -226,7 +284,7 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
     color: var(--primary-color);
 }
 
-.action-btn.delete:hover {
+.action-btn.delete:hover, .action-btn.delete-task:hover {
     color: var(--danger-color);
 }
 
@@ -254,7 +312,7 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
     border-radius: 5px;
 }
 
-.water-button {
+.water-button, .complete-task-button {
     background-color: var(--success-color);
     color: white;
     width: 100%;
@@ -270,11 +328,19 @@ button:hover, .btn-primary:hover { opacity: 0.85; transform: scale(1.02); }
 @media (max-width: 768px) {
     .main-header { padding: 0 1rem; height: 60px; }
     .main-header h1 { font-size: 1.1em; }
+    
+    /* Ajustement de la nav sticky */
+    .quick-nav { top: 60px; padding: 0 0.5rem; gap: 0.5rem; }
+    .quick-nav a { padding: 0.75rem 0.5rem; }
+    
     main.container { padding-top: 70px; }
     h2 { font-size: 1.3em; }
     .inline-form { flex-direction: column; align-items: stretch; }
     .inline-form button { width: 100%; }
     .data-grid { grid-template-columns: 1fr; }
+    
+    /* Ajustement du padding de l'ancre */
+    .section-header { padding-top: 70px; margin-top: -60px; }
 }
 
 #animated-weather-icon-container {

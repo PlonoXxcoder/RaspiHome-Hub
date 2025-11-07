@@ -59,6 +59,20 @@ export function displaySmartRecommendation(data) {
     }
 }
 
+/**
+ * NOUVELLE FONCTION V1.6
+ * Affiche l'astuce météo contextuelle dans la carte dédiée.
+ * @param {object} data - L'objet astuce (ex: {message: "...", icon: "..."})
+ */
+export function displayWeatherTip(data) {
+    const textElement = document.getElementById('weather-tip-text');
+    const iconElement = document.getElementById('weather-tip-icon');
+    if (textElement && iconElement) {
+        textElement.textContent = data.message;
+        iconElement.className = `fa-solid ${data.icon}`;
+    }
+}
+
 export function displayWeatherData(data) {
     if (!data || typeof data.temperature !== 'number') return;
     document.getElementById('weather-temp').textContent = `${data.temperature.toFixed(1)} °C`;
@@ -129,8 +143,13 @@ export function createChart(chartData, configData) {
     if (chartData.datasets.length > 0 && chartData.datasets[0].data.length > 1) {
         const firstPoint = new Date(chartData.datasets[0].data[0].x);
         const lastPoint = new Date(chartData.datasets[0].data[chartData.datasets[0].data.length - 1].x);
+        // Calcule la différence en jours
         const diffDays = (lastPoint - firstPoint) / (1000 * 60 * 60 * 24);
-        if (diffDays > 2) { timeUnit = 'day'; }
+        
+        // Si la plage est supérieure à 2 jours, on groupe par 'jour'
+        if (diffDays > 2) { 
+            timeUnit = 'day'; 
+        }
     }
     const nightZones = {};
     if (configData && configData.sunrise && configData.sunset) {
@@ -152,7 +171,14 @@ export function createChart(chartData, configData) {
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: timeUnit, tooltipFormat: 'dd MMM HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd MMM' }},
+                    time: { 
+                        unit: timeUnit, 
+                        tooltipFormat: 'dd MMM HH:mm', 
+                        displayFormats: { 
+                            hour: 'HH:mm', // Format pour 8h, 24h
+                            day: 'dd MMM'  // Format pour 2j, 7j, 30j
+                        }
+                    },
                     adapters: { date: { locale: 'fr' }},
                     title: { display: true, text: 'Date / Heure' }
                 },
@@ -184,18 +210,11 @@ export function displayPlants(plants) {
 
         const percentage = Math.max(0, 100 - (daysSinceWatered / waterFrequency) * 100);
         
-        // --- NOUVELLE LOGIQUE DE COULEUR ---
-        let statusColorVar = 'var(--success-color)'; // Vert par défaut
-        if (percentage < 30) {
-            statusColorVar = 'var(--warning-color)'; // Jaune/Orange si le temps presse
-        }
-        if (percentage <= 0) {
-            statusColorVar = 'var(--danger-color)'; // Rouge si c'est en retard
-        }
+        let statusColorVar = 'var(--success-color)';
+        if (percentage < 30) { statusColorVar = 'var(--warning-color)'; }
+        if (percentage <= 0) { statusColorVar = 'var(--danger-color)'; }
 
-        // On applique la couleur à la carte pour l'ombre via une variable CSS
         plantCard.style.setProperty('--plant-shadow-color', statusColorVar);
-        // --- FIN DE LA NOUVELLE LOGIQUE ---
         
         plantCard.innerHTML = `
             <div class="plant-header">
@@ -216,6 +235,51 @@ export function displayPlants(plants) {
         container.appendChild(plantCard);
     });
 }
+
+export function displayTasks(tasks) {
+    const container = document.getElementById('task-container');
+    container.innerHTML = '';
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<p style="grid-column: 1 / -1;">Aucune tâche configurée.</p>';
+        return;
+    }
+
+    tasks.forEach(task => {
+        const taskCard = document.createElement('div');
+        // On réutilise la classe .plant pour le style de la carte
+        taskCard.className = 'plant'; 
+        
+        const percentage = task.urgency_percentage;
+        
+        let statusColorVar = 'var(--success-color)';
+        if (percentage < 30) { statusColorVar = 'var(--warning-color)'; }
+        if (percentage <= 0) { statusColorVar = 'var(--danger-color)'; }
+
+        // On applique la couleur à l'ombre de la carte
+        taskCard.style.setProperty('--plant-shadow-color', statusColorVar);
+        
+        let frequencyText = `Tous les ${task.frequency_days} jours`;
+        if (task.frequency_days === 1) { frequencyText = "Chaque jour"; }
+
+        taskCard.innerHTML = `
+            <div class="plant-header">
+                <span class="plant-header-title">${task.name}</span>
+                <div class="plant-actions">
+                    <button class="action-btn delete-task" title="Supprimer Tâche" data-task-id="${task.id}"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="plant-body">
+                <p><strong>Fréquence :</strong> ${frequencyText}</p>
+                <p><strong>Dernière exécution :</strong> Il y a ${task.days_since_completed} jour(s)</p>
+                <div class="water-progress-bar">
+                    <div class="water-progress" style="width: ${percentage.toFixed(1)}%; background-color: ${statusColorVar};"></div>
+                </div>
+                <button class="complete-task-button" data-task-id="${task.id}" style="background-color: var(--success-color); color: white; width: 100%; margin-top: 1rem;">Marquer comme fait</button>
+            </div>`;
+        container.appendChild(taskCard);
+    });
+}
+
 export function populatePlantTypes(types) {
     if (!types) return;
     const editSelect = document.getElementById('edit-plant-type');
