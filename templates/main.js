@@ -9,13 +9,41 @@ import * as ui from './ui.js';
 async function loadWeatherData() { try { const data = await api.getWeatherData(); ui.displayWeatherData(data); } catch (e) { console.error("Erreur chargement météo:", e); } }
 async function loadInteriorData() { try { const data = await api.getSenseHATData(); ui.displaySenseHATData(data); } catch (e) { console.error("Erreur chargement données intérieures:", e); } }
 async function loadDistantData() { try { const data = await api.getESP32Data(); ui.displayESP32Data(data); } catch (e) { console.error("Erreur chargement données distantes:", e); } }
-async function loadChart(period = '24h') { try { const [chartData, configData] = await Promise.all([api.getChartData(period), api.getConfigData()]); ui.createChart(chartData, configData); } catch (e) { console.error("Erreur chargement graphique:", e); } }
-async function loadPlantData() { try { const [plants, types] = await Promise.all([api.getPlants(), api.getPlantTypes()]); ui.populatePlantTypes(types); ui.displayPlants(plants); } catch (e) { console.error("Erreur chargement plantes:", e); } }
-async function loadSmartRecommendation() { try { const data = await api.getSmartRecommendation(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement recommandation:", e); } }
-async function loadRandomTip() { try { const data = await api.getRandomTip(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement astuce aléatoire:", e); } }
 
 /**
- * NOUVEAU V1.5
+ * Charge les données du graphique.
+ * Demande une plage de données plus large (dataPeriod) que la vue (viewPeriod)
+ * pour permettre le dézoom.
+ * @param {string} viewPeriod - La vue sélectionnée (ex: '24h', '7d')
+ */
+async function loadChart(viewPeriod = '24h') { 
+    let dataPeriod = viewPeriod; // Période de données à charger
+    
+    // Logique de chargement des données en arrière-plan
+    if (viewPeriod === '24h') {
+        dataPeriod = '7d'; // Pour la vue 24h, on charge 7 jours de données...
+    } else if (viewPeriod === '7d') {
+        dataPeriod = '30d'; // Pour la vue 7j, on charge 30 jours de données...
+    }
+    // Si '8h' ou '30d', dataPeriod reste identique à viewPeriod.
+
+    try { 
+        const [chartData, configData] = await Promise.all([
+            api.getChartData(dataPeriod), // ...en appelant l'API avec la plage de données plus large
+            api.getConfigData()
+        ]);
+        
+        // On passe la *période de vue* (viewPeriod) à createChart,
+        // pour qu'elle sache comment régler le zoom initial.
+        ui.createChart(chartData, configData, viewPeriod);
+    } catch (e) { 
+        console.error("Erreur chargement graphique:", e); 
+    } 
+}
+
+async function loadPlantData() { try { const [plants, types] = await Promise.all([api.getPlants(), api.getPlantTypes()]); ui.populatePlantTypes(types); ui.displayPlants(plants); } catch (e) { console.error("Erreur chargement plantes:", e); } }
+
+/**
  * Charge les données des tâches et demande à l'UI de les afficher.
  */
 async function loadTaskData() {
@@ -27,8 +55,10 @@ async function loadTaskData() {
     }
 }
 
+async function loadSmartRecommendation() { try { const data = await api.getSmartRecommendation(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement recommandation:", e); } }
+async function loadRandomTip() { try { const data = await api.getRandomTip(); ui.displaySmartRecommendation(data); } catch (e) { console.error("Erreur chargement astuce aléatoire:", e); } }
+
 /**
- * NOUVEAU V1.6
  * Charge l'astuce météo contextuelle.
  */
 async function loadWeatherTip() {
@@ -44,7 +74,6 @@ async function loadWeatherTip() {
 // --- FONCTIONS DE GESTION DES ÉVÉNEMENTS ---
 
 /**
- * MODIFIÉ V1.7
  * Gère le rafraîchissement manuel.
  * Force les capteurs à écrire en BDD, puis recharge les données côté client.
  */
@@ -55,12 +84,9 @@ async function handleManualRefresh() {
         // 1. Demande au serveur de forcer la lecture des capteurs (qui écrivent en BDD)
         await api.refreshAllSensors();
         
-        // 2. Attend 2 secondes (laissé dans serveur_temp.py) que l'ESP32 réponde
-        
-        // 3. Recharge toutes les données côté client (météo, capteurs BDD, astuces BDD)
-        // Note : le 'await' n'est pas nécessaire ici car on veut que tout se charge en parallèle
+        // 2. Recharge toutes les données côté client (météo, capteurs BDD, astuces BDD)
         loadWeatherData();
-        loadInteriorData();
+        loadInteriorData(); // Recharge les données du Sense HAT
         loadDistantData();  // Recharge depuis /esp32_latest (qui lit la BDD)
         loadWeatherTip();   // Recharge l'astuce SDB depuis la BDD
         loadSmartRecommendation(); // Met à jour l'alerte chauffage
@@ -68,7 +94,6 @@ async function handleManualRefresh() {
     } catch (error) {
         console.error("Erreur lors du rafraîchissement manuel:", error);
     } finally {
-        // S'assure que l'icône arrête de tourner même si le rafraîchissement de l'ESP échoue
         setTimeout(() => refreshButtonIcon.classList.remove('spinning'), 500);
     }
 }
@@ -77,7 +102,7 @@ function setupEventListeners() {
     document.getElementById('refresh-weather-btn').addEventListener('click', handleManualRefresh);
     document.getElementById('period-select').addEventListener('change', (e) => loadChart(e.target.value));
     
-    // --- GESTION MODALE AJOUT PLANTE (Logique existante) ---
+    // --- GESTION MODALE AJOUT PLANTE ---
     document.getElementById('show-add-plant-modal-btn').addEventListener('click', () => {
         ui.openAddPlantModal();
     });
@@ -112,7 +137,7 @@ function setupEventListeners() {
         loadPlantData();
     });
 
-    // --- GESTION MODALE MODIFICATION PLANTE (Logique existante) ---
+    // --- GESTION MODALE MODIFICATION PLANTE ---
     document.getElementById('edit-plant-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('edit-plant-id').value;
@@ -123,7 +148,7 @@ function setupEventListeners() {
         loadPlantData();
     });
 
-    // --- GESTION CLICS CARTES PLANTES (Logique existante) ---
+    // --- GESTION CLICS CARTES PLANTES ---
     document.getElementById('plant-container').addEventListener('click', async (e) => {
         const button = e.target.closest('button.action-btn, button.water-button');
         if (!button) return;
@@ -145,7 +170,7 @@ function setupEventListeners() {
         }
     });
 
-    // --- NOUVEAU : GESTION FORMULAIRE AJOUT TÂCHE V1.5 ---
+    // --- GESTION FORMULAIRE AJOUT TÂCHE ---
     document.getElementById('add-task-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const nameInput = document.getElementById('new-task-name');
@@ -168,7 +193,7 @@ function setupEventListeners() {
         }
     });
 
-    // --- NOUVEAU : GESTION CLICS CARTES TÂCHES V1.5 ---
+    // --- GESTION CLICS CARTES TÂCHES ---
     document.getElementById('task-container').addEventListener('click', async (e) => {
         const button = e.target.closest('button.complete-task-button, button.delete-task');
         if (!button) return;
@@ -198,37 +223,37 @@ function setupEventListeners() {
     });
 }
 
-// --- INITIALISATION DE L'APPLICATION (MODIFIÉE V1.6) ---
+// --- INITIALISATION DE L'APPLICATION ---
 async function initializeApp() {
     await Promise.all([
         loadSmartRecommendation(),
-        loadWeatherTip(), // Ajout de l'astuce météo
+        loadWeatherTip(),
         loadWeatherData(),
         loadInteriorData(),
         loadDistantData(),
         loadPlantData(),
-        loadTaskData(), // Ajout du chargement des tâches
-        loadChart('24h') // Modifié pour correspondre au HTML ('24h' au lieu de 'day')
+        loadTaskData(),
+        loadChart('24h') // Vue par défaut '24h'
     ]);
     setupEventListeners();
     
-    // Rafraîchit les capteurs (qui lisent la BDD) et l'astuce météo contextuelle
+    // Rafraîchit les capteurs et l'astuce météo
     setInterval(() => { 
         loadInteriorData(); 
         loadDistantData();
-        loadWeatherTip(); // Ajouté à la boucle de 60s
+        loadWeatherTip();
     }, 60000); 
     
     // Rafraîchit l'astuce principale (alertes)
     setInterval(() => {
         const currentIcon = document.getElementById('smart-recommendation-icon').className;
         
-        // Ne pas rafraîchir si une alerte est déjà affichée (plante, tâche, ou chauffage)
-        if (!currentIcon.includes('fa-tint') && !currentIcon.includes('fa-broom') && !currentIcon.includes('fa-fire')) {
-            loadRandomTip(); 
-        } else {
-            // Si une alerte est affichée, on la revérifie au cas où elle serait résolue
+        // Si une alerte est affichée (plante, tâche, chauffage), on la revérifie
+        if (currentIcon.includes('fa-tint') || currentIcon.includes('fa-broom') || currentIcon.includes('fa-fire')) {
             loadSmartRecommendation();
+        } else {
+            // Sinon, on charge une astuce aléatoire
+            loadRandomTip(); 
         }
     }, 30000);
 }

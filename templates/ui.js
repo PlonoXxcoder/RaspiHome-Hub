@@ -60,7 +60,6 @@ export function displaySmartRecommendation(data) {
 }
 
 /**
- * NOUVELLE FONCTION V1.6
  * Affiche l'astuce météo contextuelle dans la carte dédiée.
  * @param {object} data - L'objet astuce (ex: {message: "...", icon: "..."})
  */
@@ -108,8 +107,21 @@ export function displayWeatherData(data) {
     }
 }
 
+/**
+ * Affiche les données du Sense HAT.
+ * Ne cache PAS la carte, pour permettre le débogage.
+ */
 export function displaySenseHATData(data) {
-    if (data && typeof data.temperature === 'number') {
+    const card = document.getElementById('interior-card');
+    if (!card) return;
+    card.style.display = 'block'; // S'assurer que la carte est visible
+
+    if (data && data.timestamp === "Capteur désactivé") {
+        document.getElementById('interior-temp').textContent = `-- °C`;
+        document.getElementById('interior-humidity').textContent = `-- %`;
+        document.getElementById('interior-pressure').textContent = `-- hPa`;
+        document.getElementById('interior-timestamp').textContent = `Capteur désactivé`;
+    } else if (data && typeof data.temperature === 'number') {
         document.getElementById('interior-temp').textContent = `${data.temperature.toFixed(1)} °C`;
         document.getElementById('interior-humidity').textContent = `${data.humidity.toFixed(1)} %`;
         document.getElementById('interior-pressure').textContent = `${data.pressure.toFixed(0)} hPa`;
@@ -123,34 +135,47 @@ export function displaySenseHATData(data) {
 }
 
 export function displayESP32Data(data) {
-    if (data && typeof data.temperature === 'number') {
-        document.getElementById('distant-temp').textContent = `${data.temperature.toFixed(1)} °C`;
-        document.getElementById('distant-humidity').textContent = `${data.humidity.toFixed(1)} %`;
-        document.getElementById('distant-timestamp').textContent = `Dernière lecture: ${data.timestamp.split(' ')[1]}`;
-    } else {
+    if (data && data.timestamp === "Aucune donnée") {
         document.getElementById('distant-temp').textContent = `-- °C`;
         document.getElementById('distant-humidity').textContent = `-- %`;
         document.getElementById('distant-timestamp').textContent = `En attente de données...`;
+        return;
+    }
+
+    if (data && typeof data.temperature === 'number') {
+        document.getElementById('distant-temp').textContent = `${data.temperature.toFixed(1)} °C`;
+        document.getElementById('distant-humidity').textContent = `${data.humidity.toFixed(1)} %`;
+        document.getElementById('distant-timestamp').textContent = data.timestamp;
+    } else {
+        document.getElementById('distant-temp').textContent = `-- °C`;
+        document.getElementById('distant-humidity').textContent = `-- %`;
+        document.getElementById('distant-timestamp').textContent = `...`;
     }
 }
 
-export function createChart(chartData, configData) {
+/**
+ * Crée le graphique.
+ * Accepte 'viewPeriod' pour définir le zoom initial.
+ * @param {object} chartData - Les données (datasets)
+ * @param {object} configData - La config (seuils, etc.)
+ * @param {string} viewPeriod - La vue sélectionnée (ex: '24h', '7d')
+ */
+export function createChart(chartData, configData, viewPeriod = '30d') {
     const ctx = document.getElementById('myChart').getContext('2d');
     if (chartInstance) {
         chartInstance.destroy();
     }
+    
     let timeUnit = 'hour';
     if (chartData.datasets.length > 0 && chartData.datasets[0].data.length > 1) {
         const firstPoint = new Date(chartData.datasets[0].data[0].x);
         const lastPoint = new Date(chartData.datasets[0].data[chartData.datasets[0].data.length - 1].x);
-        // Calcule la différence en jours
         const diffDays = (lastPoint - firstPoint) / (1000 * 60 * 60 * 24);
-        
-        // Si la plage est supérieure à 2 jours, on groupe par 'jour'
         if (diffDays > 2) { 
             timeUnit = 'day'; 
         }
     }
+
     const nightZones = {};
     if (configData && configData.sunrise && configData.sunset) {
         nightZones.nightStart = { type: 'box', xMin: new Date(new Date().setHours(0,0,0,0)), xMax: new Date(configData.sunrise), backgroundColor: 'rgba(100, 100, 100, 0.1)', borderColor: 'transparent' };
@@ -161,6 +186,26 @@ export function createChart(chartData, configData) {
         tempThresholds.min = { type: 'line', yMin: configData.temp_ideal_min, yMax: configData.temp_ideal_min, borderColor: 'rgba(0, 255, 0, 0.3)', borderWidth: 2, borderDash: [5, 5], label: { content: `${configData.temp_ideal_min}°C`, display: true, position: 'start' } };
         tempThresholds.max = { type: 'line', yMin: configData.temp_ideal_max, yMax: configData.temp_ideal_max, borderColor: 'rgba(255, 0, 0, 0.3)', borderWidth: 2, borderDash: [5, 5], label: { content: `${configData.temp_ideal_max}°C`, display: true, position: 'start' } };
     }
+
+    
+    // Définition du zoom initial basé sur la vue
+    const now = new Date();
+    let initialMin = undefined; // 'undefined' = zoom automatique
+    let initialMax = new Date(now); // On zoome toujours jusqu'à "maintenant"
+
+    if (viewPeriod === '8h') {
+        initialMin = new Date(new Date().setHours(now.getHours() - 8));
+        timeUnit = 'hour'; // Forcer l'unité en 'hour'
+    } else if (viewPeriod === '24h') {
+        initialMin = new Date(new Date().setDate(now.getDate() - 1));
+        timeUnit = 'hour'; // Forcer l'unité en 'hour'
+    } else if (viewPeriod === '7d') {
+        initialMin = new Date(new Date().setDate(now.getDate() - 7));
+        timeUnit = 'day'; // Forcer l'unité en 'day'
+    }
+    // Si viewPeriod est '30d', initialMin reste undefined, le graphique
+    // affichera toutes les données chargées (30 jours).
+    
     chartInstance = new Chart(ctx, {
         type: 'line',
         data: { datasets: chartData.datasets },
@@ -175,18 +220,24 @@ export function createChart(chartData, configData) {
                         unit: timeUnit, 
                         tooltipFormat: 'dd MMM HH:mm', 
                         displayFormats: { 
-                            hour: 'HH:mm', // Format pour 8h, 24h
-                            day: 'dd MMM'  // Format pour 2j, 7j, 30j
+                            hour: 'HH:mm',
+                            day: 'dd MMM'
                         }
                     },
                     adapters: { date: { locale: 'fr' }},
-                    title: { display: true, text: 'Date / Heure' }
+                    title: { display: true, text: 'Date / Heure' },
+                    // Application du zoom initial
+                    min: initialMin,
+                    max: initialMax
                 },
                 y_temp: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Température (°C)' } },
                 y_hum: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Humidité (%)' }, grid: { drawOnChartArea: false } }
             },
             plugins: {
-                zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }},
+                zoom: { 
+                    pan: { enabled: true, mode: 'x' }, 
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                },
                 annotation: { annotations: { ...nightZones, ...tempThresholds }}
             }
         }
@@ -246,7 +297,6 @@ export function displayTasks(tasks) {
 
     tasks.forEach(task => {
         const taskCard = document.createElement('div');
-        // On réutilise la classe .plant pour le style de la carte
         taskCard.className = 'plant'; 
         
         const percentage = task.urgency_percentage;
@@ -255,7 +305,6 @@ export function displayTasks(tasks) {
         if (percentage < 30) { statusColorVar = 'var(--warning-color)'; }
         if (percentage <= 0) { statusColorVar = 'var(--danger-color)'; }
 
-        // On applique la couleur à l'ombre de la carte
         taskCard.style.setProperty('--plant-shadow-color', statusColorVar);
         
         let frequencyText = `Tous les ${task.frequency_days} jours`;

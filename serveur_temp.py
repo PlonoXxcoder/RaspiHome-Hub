@@ -28,10 +28,11 @@ except ImportError:
 try:
     from sense_hat import SenseHat
     sense = SenseHat()
-    print("✅ Sense HAT détecté.")
+    print("✅ Sense HAT détecté. (Mode débogage)")
 except (ImportError, OSError):
     sense = None
     print("⚠️ AVERTISSEMENT: Sense HAT non détecté.")
+
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -48,6 +49,12 @@ db = SQLAlchemy(app)
 
 latest_sensor_data = {"weather": {}, "sensehat": {}, "esp32": {}}
 data_lock = Lock()
+
+alert_states = {
+    "sdb_pluie": False,
+    "moisissure": False,
+    "canicule": False
+}
 
 TEMP_IDEAL_MIN = 18.0
 TEMP_IDEAL_MAX = 25.0
@@ -93,8 +100,11 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
-    def set_password(self, password): self.password_hash = generate_password_hash(password)
-    def check_password(self, password): return check_password_hash(self.password_hash, password)
+    
+    def set_password(self, password): 
+        self.password_hash = generate_password_hash(password)
+    def check_password(self, password): 
+        return check_password_hash(self.password_hash, password)
 
 class Task(db.Model):
     __tablename__ = 'tasks'
@@ -105,10 +115,10 @@ class Task(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # Corrigé pour SQLAlchemy 2.0
     return db.session.get(User, int(user_id))
 
 # ======================= 3. FONCTIONS UTILITAIRES & THREADS =======================
+# ... (Toutes les fonctions utilitaires et les threads sont inchangés) ...
 def get_season(month):
     return 'winter' if month in (11, 12, 1, 2, 3, 4) else 'summer'
 
@@ -162,24 +172,23 @@ def weather_thread_func():
         time.sleep(900)
 
 def sensehat_thread_func():
-    while True:
-        if sense:
+    if sense:
+        while True:
             temp, humidity, pressure = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
             if temp > 0 and humidity > 0:
                 cpu_temp_str = os.popen("vcgencmd measure_temp").readline()
                 cpu_temp = float(cpu_temp_str.replace("temp=", "").replace("'C\n", ""))
-                temp = temp - ((cpu_temp - temp) / 2.5)
+                temp_corrected = temp - ((cpu_temp - temp) / 2.5)
+                
+                with data_lock:
+                    latest_sensor_data["sensehat"] = {"temperature": temp_corrected, "humidity": humidity, "pressure": pressure, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                with app.app_context():
+                    db.session.add(SensorReading(source='sensehat', temperature=temp_corrected, humidity=humidity, pressure=pressure))
+                    db.session.commit()
             else:
                 print(f"⚠️ Lecture aberrante du Sense HAT ignorée (Temp: {temp}, Hum: {humidity})")
-                time.sleep(60); continue
-        else:
-            temp, humidity, pressure = 25.0, 45.0, 1012.0
-        with data_lock:
-            latest_sensor_data["sensehat"] = {"temperature": temp, "humidity": humidity, "pressure": pressure, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        with app.app_context():
-            db.session.add(SensorReading(source='sensehat', temperature=temp, humidity=humidity, pressure=pressure))
-            db.session.commit()
-        time.sleep(60)
+            
+            time.sleep(60)
 
 def notification_thread_func():
     time.sleep(60)
@@ -194,6 +203,62 @@ def notification_thread_func():
                 send_telegram_message("🧹 *Rappel de tâches !*\n- " + "\n- ".join(overdue_tasks))
                 
         time.sleep(3600)
+
+def alert_monitor_thread():
+    global alert_states
+    print("🚀 Lancement du thread de monitoring d'alertes avancées...")
+    time.sleep(120) 
+    
+    while True:
+        try:
+            with app.app_context():
+                now = datetime.now()
+                current_hour = now.hour
+                
+                last_esp_reading = SensorReading.query.filter_by(source='esp32').order_by(SensorReading.timestamp.desc()).first()
+                with data_lock:
+                    weather_data = latest_sensor_data.get("weather", {})
+                
+                weather_desc = weather_data.get("description", "").lower()
+                weather_temp = weather_data.get("temperature")
+
+                if last_esp_reading:
+                    is_raining = "pluie" in weather_desc or "bruine" in weather_desc
+                    is_sdb_humid = last_esp_reading.humidity > 75.0
+                    
+                    if is_sdb_humid and is_raining:
+                        if not alert_states["sdb_pluie"]:
+                            send_telegram_message(f"🌧️ ALERTE PLUIE : Il pleut ({weather_desc}) et l'humidité de la SDB est élevée ({last_esp_reading.humidity:.0f}%) ! Pensez à fermer la fenêtre.")
+                            alert_states["sdb_pluie"] = True
+                    elif not is_sdb_humid:
+                        alert_states["sdb_pluie"] = False
+
+                if current_hour == 8:
+                    since_yesterday = datetime.utcnow() - timedelta(days=1)
+                    avg_humidity_result = db.session.query(func.avg(SensorReading.humidity))\
+                                                  .filter(SensorReading.source == 'esp32', 
+                                                          SensorReading.timestamp >= since_yesterday).first()
+                    avg_humidity = avg_humidity_result[0] if avg_humidity_result else None
+
+                    if avg_humidity and avg_humidity > 70.0:
+                        if not alert_states["moisissure"]:
+                            send_telegram_message(f"📈 ALERTE MOISISSURE : L'humidité moyenne de la SDB sur 24h est trop élevée ({avg_humidity:.0f}%). Problème de VMC ou d'aération ?")
+                            alert_states["moisissure"] = True
+                    elif avg_humidity and avg_humidity < 65.0:
+                         alert_states["moisissure"] = False
+
+                if weather_temp and current_hour == 10:
+                    if weather_temp > 30.0:
+                        if not alert_states["canicule"]:
+                            send_telegram_message(f"☀️ ALERTE CANICULE : {weather_temp:.0f}°C attendus. Pensez à fermer les volets et à vous hydrater.")
+                            alert_states["canicule"] = True
+                    elif weather_temp < 25.0:
+                        alert_states["canicule"] = False
+
+        except Exception as e:
+            print(f"❌ Erreur dans le thread d'alertes : {e}")
+            
+        time.sleep(600)
 
 def send_startup_notification():
     ngrok_url = None
@@ -235,7 +300,7 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# ======================= 5. ROUTES DE L'APPLICATION (PROTÉGÉES) =======================
+# ======================= 5. ROUTES DE L'APPLICATION (CORRIGÉES) =======================
 @app.route('/')
 @login_required
 def serve_index():
@@ -259,51 +324,43 @@ def get_weather_data():
 @app.route('/sensehat_latest')
 @login_required
 def get_sensehat_latest():
-    with data_lock:
-        return jsonify(latest_sensor_data.get("sensehat", {}))
+    if sense:
+        with data_lock:
+            return jsonify(latest_sensor_data.get("sensehat", {}))
+    else:
+        return jsonify({"temperature": 0, "humidity": 0, "pressure": 0, "timestamp": "Capteur désactivé"})
+
 
 @app.route('/esp32_latest')
 @login_required
 def get_esp32_latest():
-    # MODIFIÉ V1.7 : Cette route lit maintenant la BDD pour être cohérente
-    # avec /weather_tip et fournir la donnée la plus fraîche au dashboard.
     with app.app_context():
         last_reading = SensorReading.query.filter_by(source='esp32').order_by(SensorReading.timestamp.desc()).first()
         if last_reading:
-            # Calcule le temps écoulé
             time_diff = datetime.utcnow() - last_reading.timestamp
             minutes_ago = int(time_diff.total_seconds() / 60)
             
-            # Formatte le timestamp pour l'affichage (ex: "il y a 5 min")
-            if minutes_ago < 2:
-                timestamp_str = "à l'instant"
-            elif minutes_ago < 60:
-                timestamp_str = f"il y a {minutes_ago} min"
-            else:
-                hours_ago = int(minutes_ago / 60)
-                timestamp_str = f"il y a {hours_ago} h"
+            if minutes_ago < 2: timestamp_str = "à l'instant"
+            elif minutes_ago < 60: timestamp_str = f"il y a {minutes_ago} min"
+            else: hours_ago = int(minutes_ago / 60); timestamp_str = f"il y a {hours_ago} h"
                 
             return jsonify({
                 "temperature": last_reading.temperature,
                 "humidity": last_reading.humidity,
-                "timestamp": timestamp_str # Envoie une chaîne formatée
+                "timestamp": timestamp_str
             })
         else:
-            # S'il n'y a pas de donnée, on retourne un objet vide
             return jsonify({"timestamp": "Aucune donnée"})
 
-
 @app.route('/esp32/data', methods=['POST'])
-def receive_esp32_data(): # Pas de @login_required ici
+def receive_esp32_data():
     data = request.get_json()
     if not data or 'temperature' not in data or 'humidity' not in data:
         return jsonify({"error": "Données manquantes"}), 400
     
-    # On met à jour la variable en cache (pour l'alerte chauffage)
     with data_lock:
         latest_sensor_data["esp32"] = {"temperature": data['temperature'],"humidity": data['humidity']}
     
-    # On écrit en BDD (pour l'historique et /weather_tip)
     with app.app_context():
         db.session.add(SensorReading(source='esp32', temperature=data['temperature'], humidity=data['humidity']))
         db.session.commit()
@@ -322,14 +379,18 @@ def get_all_data():
         
     since = datetime.utcnow() - delta
     
-    sensehat_readings = SensorReading.query.filter(SensorReading.source == 'sensehat', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
+    datasets = []
+    
+    if sense:
+        sensehat_readings = SensorReading.query.filter(SensorReading.source == 'sensehat', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
+        datasets.append({"label": "Temp. Intérieure (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in sensehat_readings], "borderColor": "#ef476f", "fill": False, "yAxisID": "y_temp"})
+        datasets.append({"label": "Hum. Intérieure (%)", "data": [{"x": r.timestamp.isoformat(), "y": r.humidity} for r in sensehat_readings], "borderColor": "#06d6a0", "fill": False, "yAxisID": "y_hum"})
+
     esp32_readings = SensorReading.query.filter(SensorReading.source == 'esp32', SensorReading.timestamp >= since).order_by(SensorReading.timestamp.asc()).all()
-    datasets = [
-        {"label": "Temp. Intérieure (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in sensehat_readings], "borderColor": "#ef476f", "fill": False, "yAxisID": "y_temp"},
+    datasets.extend([
         {"label": "Temp. SDB (°C)", "data": [{"x": r.timestamp.isoformat(), "y": r.temperature} for r in esp32_readings], "borderColor": "#fca311", "fill": False, "yAxisID": "y_temp"},
-        {"label": "Hum. Intérieure (%)", "data": [{"x": r.timestamp.isoformat(), "y": r.humidity} for r in sensehat_readings], "borderColor": "#06d6a0", "fill": False, "yAxisID": "y_hum"},
         {"label": "Hum. SDB (%)", "data": [{"x": r.timestamp.isoformat(), "y": r.humidity} for r in esp32_readings], "borderColor": "#118ab2", "fill": False, "yAxisID": "y_hum"},
-    ]
+    ])
     return jsonify({"datasets": datasets})
 
 @app.route('/config_data')
@@ -355,46 +416,20 @@ def handle_plants():
     
     if request.method == 'POST':
         data = request.get_json()
-        if not data:
-            return jsonify({"error": "Données invalides"}), 400
-
+        if not data: return jsonify({"error": "Données invalides"}), 400
         plant_type_name = data.get('type_name')
         if data.get('is_new_type') == True:
-            if not plant_type_name or not data.get('summer_weeks') or not data.get('winter_weeks'):
-                return jsonify({"error": "Données de nouveau type manquantes"}), 400
-            
+            if not plant_type_name or not data.get('summer_weeks') or not data.get('winter_weeks'): return jsonify({"error": "Données de nouveau type manquantes"}), 400
             existing_type = PlantRule.query.filter_by(name=plant_type_name).first()
             if not existing_type:
-                new_rule = PlantRule(
-                    name=plant_type_name,
-                    summer_weeks=data['summer_weeks'],
-                    winter_weeks=data['winter_weeks']
-                )
-                db.session.add(new_rule)
+                new_rule = PlantRule(name=plant_type_name, summer_weeks=data['summer_weeks'], winter_weeks=data['winter_weeks']); db.session.add(new_rule)
         
-        if not data.get('name') or not plant_type_name:
-            return jsonify({"error": "Nom de plante ou type manquant"}), 400
-            
-        new_plant = Plant(name=data['name'], type=plant_type_name)
-        db.session.add(new_plant)
-        db.session.commit()
-
+        if not data.get('name') or not plant_type_name: return jsonify({"error": "Nom de plante ou type manquant"}), 400
+        new_plant = Plant(name=data['name'], type=plant_type_name); db.session.add(new_plant); db.session.commit()
         try:
-            next_watering_date = date.fromisoformat(data.get('next_watering_date'))
-            rule = PlantRule.query.get(plant_type_name)
-            season = get_season(datetime.utcnow().month)
-            frequency_weeks = rule.summer_weeks if season == 'summer' else rule.winter_weeks
-            frequency_days = frequency_weeks * 7
-            
-            last_watered_date = next_watering_date - timedelta(days=frequency_days)
-            
-        except (TypeError, ValueError):
-            last_watered_date = date.today()
-
-        initial_watering = WateringHistory(plant_id=new_plant.id, watering_date=last_watered_date)
-        db.session.add(initial_watering)
-        db.session.commit()
-        
+            next_watering_date = date.fromisoformat(data.get('next_watering_date')); rule = PlantRule.query.get(plant_type_name); season = get_season(datetime.utcnow().month); frequency_weeks = rule.summer_weeks if season == 'summer' else rule.winter_weeks; frequency_days = frequency_weeks * 7; last_watered_date = next_watering_date - timedelta(days=frequency_days);
+        except (TypeError, ValueError): last_watered_date = date.today()
+        initial_watering = WateringHistory(plant_id=new_plant.id, watering_date=last_watered_date); db.session.add(initial_watering); db.session.commit()
         return jsonify({"message": "Plante ajoutée avec succès"}), 201
 
 
@@ -402,58 +437,44 @@ def handle_plants():
 @login_required
 def handle_plant(plant_id):
     plant = Plant.query.get_or_404(plant_id)
-    if request.method == 'GET':
-        last_watering_record = WateringHistory.query.filter_by(plant_id=plant.id).order_by(WateringHistory.watering_date.desc()).first()
-        last_watered_date = last_watering_record.watering_date.isoformat() if last_watering_record else date.today().isoformat()
-        return jsonify({"id": plant.id, "name": plant.name, "type_id": plant.type, "last_watered_date": last_watered_date})
-    if request.method == 'PUT':
-        data = request.get_json()
-        plant.name = data.get('name', plant.name)
-        plant.type = data.get('type', plant.type)
-        db.session.commit()
-        return jsonify({"message": "Plante mise à jour avec succès"})
-    if request.method == 'DELETE':
-        WateringHistory.query.filter_by(plant_id=plant_id).delete()
-        db.session.delete(plant)
-        db.session.commit()
-        return jsonify({"message": "Plante supprimée avec succès"})
+    if request.method == 'GET': 
+        last_watering_record = WateringHistory.query.filter_by(plant_id=plant.id).order_by(WateringHistory.watering_date.desc()).first(); last_watered_date = last_watering_record.watering_date.isoformat() if last_watering_record else date.today().isoformat(); return jsonify({"id": plant.id, "name": plant.name, "type_id": plant.type, "last_watered_date": last_watered_date});
+    if request.method == 'PUT': 
+        data = request.get_json(); plant.name = data.get('name', plant.name); plant.type = data.get('type', plant.type); db.session.commit(); return jsonify({"message": "Plante mise à jour avec succès"});
+    if request.method == 'DELETE': 
+        WateringHistory.query.filter_by(plant_id=plant_id).delete(); db.session.delete(plant); db.session.commit(); return jsonify({"message": "Plante supprimée avec succès"});
 
 @app.route('/plant/<int:plant_id>/water', methods=['POST'])
 @login_required
-def water_plant(plant_id):
-    new_watering = WateringHistory(plant_id=plant_id, watering_date=date.today())
-    db.session.add(new_watering)
-    db.session.commit()
-    return jsonify({"message": "Arrosage enregistré"})
+def water_plant(plant_id): 
+    new_watering = WateringHistory(plant_id=plant_id, watering_date=date.today()); db.session.add(new_watering); db.session.commit(); return jsonify({"message": "Arrosage enregistré"});
 
 @app.route('/plant_types', methods=['GET', 'POST'])
 @login_required
 def handle_plant_types():
-    if request.method == 'GET':
-        types = PlantRule.query.all()
-        return jsonify([{"id": t.name, "name": t.name} for t in types])
+    if request.method == 'GET': 
+        types = PlantRule.query.all(); return jsonify([{"id": t.name, "name": t.name} for t in types]);
     if request.method == 'POST':
-        data = request.get_json()
-        if not data or not data.get('name') or not data.get('summer_weeks') or not data.get('winter_weeks'):
-            return jsonify({"error": "Données manquantes"}), 400
-        existing_type = PlantRule.query.filter_by(name=data['name']).first()
-        if existing_type:
-            existing_type.summer_weeks = data['summer_weeks']
-            existing_type.winter_weeks = data['winter_weeks']
-        else:
-            db.session.add(PlantRule(name=data['name'], summer_weeks=data['summer_weeks'], winter_weeks=data['winter_weeks']))
-        db.session.commit()
-        return jsonify({"message": "Type de plante sauvegardé"})
+        data = request.get_json();
+        if not data or not data.get('name') or not data.get('summer_weeks') or not data.get('winter_weeks'): return jsonify({"error": "Données manquantes"}), 400;
+        existing_type = PlantRule.query.filter_by(name=data['name']).first();
+        if existing_type: 
+            existing_type.summer_weeks = data['summer_weeks']; existing_type.winter_weeks = data['winter_weeks'];
+        else: 
+            db.session.add(PlantRule(name=data['name'], summer_weeks=data['summer_weeks'], winter_weeks=data['winter_weeks']));
+        db.session.commit(); return jsonify({"message": "Type de plante sauvegardé"});
 
+# --- ROUTES TÂCHES V1.5 (REFORMATÉES) ---
 @app.route('/tasks', methods=['GET'])
 @login_required
 def get_tasks():
     tasks = Task.query.all()
     tasks_data = []
-    for task in tasks:
+    # La ligne 469 (maintenant 478) est maintenant correctement indentée
+    for task in tasks: 
         tasks_data.append({
-            "id": task.id,
-            "name": task.name,
+            "id": task.id, 
+            "name": task.name, 
             **calculate_task_info(task)
         })
     tasks_data.sort(key=lambda x: x['urgency_percentage'])
@@ -463,12 +484,11 @@ def get_tasks():
 @login_required
 def add_task():
     data = request.get_json()
-    if not data or not data.get('name') or not data.get('frequency_days'):
+    if not data or not data.get('name') or not data.get('frequency_days'): 
         return jsonify({"error": "Données manquantes"}), 400
-    
     new_task = Task(
-        name=data['name'],
-        frequency_days=int(data['frequency_days']),
+        name=data['name'], 
+        frequency_days=int(data['frequency_days']), 
         last_completed=date.today()
     )
     db.session.add(new_task)
@@ -477,7 +497,7 @@ def add_task():
 
 @app.route('/task/<int:task_id>/complete', methods=['POST'])
 @login_required
-def complete_task(task_id):
+def complete_task(task_id): 
     task = Task.query.get_or_404(task_id)
     task.last_completed = date.today()
     db.session.commit()
@@ -485,11 +505,12 @@ def complete_task(task_id):
 
 @app.route('/task/<int:task_id>', methods=['DELETE'])
 @login_required
-def delete_task(task_id):
+def delete_task(task_id): 
     task = Task.query.get_or_404(task_id)
     db.session.delete(task)
     db.session.commit()
     return jsonify({"message": "Tâche supprimée avec succès"})
+# -----------------------------------
 
 @app.route('/smart_recommendation', methods=['GET'])
 @login_required
@@ -499,16 +520,15 @@ def get_smart_recommendation():
         day_of_week = now.weekday()
         current_hour = now.hour
 
-        # Priorité 1 : Alerte Chauffage
-        interior_temp = None
+        # Priorité 1 : Alerte Chauffage (basée sur ESP32)
+        room_temp = None
         with data_lock:
-            # Pour l'alerte instantanée, on utilise la donnée en cache
-            interior_temp = latest_sensor_data.get("sensehat", {}).get("temperature")
+            room_temp = latest_sensor_data.get("esp32", {}).get("temperature")
         
-        if interior_temp:
+        if room_temp:
             is_evening_or_weekend = (current_hour >= 19) or (day_of_week >= 5)
-            if interior_temp < TEMP_IDEAL_MIN and is_evening_or_weekend:
-                message = f"Température intérieure basse ({interior_temp:.1f}°C). Pensez à allumer le chauffage."
+            if room_temp < TEMP_IDEAL_MIN and is_evening_or_weekend:
+                message = f"Température SDB basse ({room_temp:.1f}°C). Pensez à allumer le chauffage."
                 icon = "fa-solid fa-fire"
                 return jsonify({"message": message, "icon": icon})
 
@@ -530,46 +550,30 @@ def get_smart_recommendation():
         icon = "fa-lightbulb"
         return jsonify({"message": message, "icon": icon})
 
-# --- MODIFIÉ V1.7 : Astuce Météo basée sur la BDD ---
 @app.route('/weather_tip', methods=['GET'])
 @login_required
 def get_weather_tip():
-    
     HUMIDITY_ALERT_THRESHOLD = 75.0
-    
-    # On va chercher la dernière valeur ESP32 directement en BDD
     with app.app_context():
         last_reading = SensorReading.query.filter_by(source='esp32').order_by(SensorReading.timestamp.desc()).first()
-
-    # Cas 1 : Aucune donnée ESP32 dans la BDD
     if not last_reading:
         message = "En attente de la première donnée du capteur salle de bain..."
         icon = "fa-solid fa-satellite-dish"
         return jsonify({"message": message, "icon": icon})
-
     esp32_hum = last_reading.humidity
     esp32_temp = last_reading.temperature
-
-    # Cas 2 : Humidité élevée (Alerte)
     if esp32_hum > HUMIDITY_ALERT_THRESHOLD:
         message = f"L'humidité de la salle de bain est élevée ({esp32_hum:.0f}%). Pensez à aérer."
         icon = "fa-solid fa-wind"
         return jsonify({"message": message, "icon": icon})
-
-    # Cas 3 : Humidité normale
-    # Vérifions si la donnée est récente
     now = datetime.utcnow()
     if (now - last_reading.timestamp) > timedelta(hours=1):
-         # Donnée ancienne
          message = f"Dernier relevé SDB ({last_reading.timestamp.strftime('%H:%M')}) : {esp32_hum:.0f}%. Donnée ancienne."
          icon = "fa-solid fa-clock-rotate-left"
     else:
-         # Donnée récente et normale
          message = f"Humidité SDB : {esp32_hum:.0f}%. Température : {esp32_temp:.1f}°C. Tout est normal."
          icon = "fa-solid fa-bath"
-    
     return jsonify({"message": message, "icon": icon})
-# --------------------------------------------------------
 
 @app.route('/random_tip', methods=['GET'])
 @login_required
@@ -589,6 +593,7 @@ def refresh_all_sensors():
             data = response.json(); print("🔄 Météo rafraîchie manuellement.")
             with data_lock: latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
     except Exception as e: print(f"❌ Erreur de rafraîchissement manuel de la météo: {e}")
+    
     if sense:
         temp, hum, pres = sense.get_temperature(), sense.get_humidity(), sense.get_pressure()
         cpu_temp_str = os.popen("vcgencmd measure_temp").readline()
@@ -596,18 +601,15 @@ def refresh_all_sensors():
         temp_corr = temp - ((cpu_temp - temp) / 2.5)
         with data_lock: latest_sensor_data["sensehat"] = {"temperature": temp_corr, "humidity": hum, "pressure": pres, "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         print("🔄 Sense HAT rafraîchi manuellement.")
+        
     try:
-        # On force l'ESP32 à envoyer une nouvelle donnée (qui sera écrite en BDD)
         esp32_url = f"http://{config.ESP32_IP}/read_sensor" 
         response = requests.get(esp32_url, timeout=5)
         if response.status_code == 200: print("🔄 Ordre de lecture envoyé à l'ESP32.")
     except Exception as e: print(f"❌ Impossible de contacter l'ESP32 pour rafraîchissement: {e}")
     
-    # On attend 2s que l'ESP32 ait eu le temps d'envoyer sa donnée
     time.sleep(2) 
     
-    # On renvoie les données en cache (pour la météo) et on laisse le frontend
-    # rafraîchir les données BDD (sensehat_latest, esp32_latest)
     with data_lock:
         return jsonify(latest_sensor_data)
 
@@ -618,11 +620,20 @@ if __name__ == '__main__':
         pass
     print("🚀 Lancement du thread d'enregistrement météo...")
     threading.Thread(target=weather_thread_func, daemon=True).start()
-    print("🚀 Lancement du thread de lecture du Sense HAT...")
-    threading.Thread(target=sensehat_thread_func, daemon=True).start()
+    
+    if sense:
+        print("🚀 Lancement du thread de lecture du Sense HAT...")
+        threading.Thread(target=sensehat_thread_func, daemon=True).start()
+    else:
+        print("ℹ️ Le thread Sense HAT n'est pas démarré (capteur désactivé).")
+        
     print("🚀 Lancement du thread de notification (Plantes & Tâches)...")
     threading.Thread(target=notification_thread_func, daemon=True).start()
     print("🚀 Lancement du thread de notification de démarrage...")
     threading.Thread(target=send_startup_notification, daemon=True).start()
+    
+    print("🚀 Lancement du thread de monitoring d'alertes avancées...")
+    threading.Thread(target=alert_monitor_thread, daemon=True).start()
+    
     print("🚀 Lancement du serveur Flask sur http://0.0.0.0:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)
