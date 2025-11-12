@@ -1,10 +1,10 @@
-# RaspiHome Hub v1.4 : Météo Multi-Capteurs, Jardinage Intelligent et Protection Réseau
+# RaspiHome Hub v1.5 : Météo, Jardinage, Tâches & Domotique Intelligente
 
 <p align="center">
   <img src="https://assets.raspberrypi.com/static/5b1d6198ce585628ff74093aeae5cfbc/9ff6b/049d9e7a086cb233116999b3fd701e4cfae86d3a_sense-hat-plugged-in-1-1383x1080.webp" alt="Sense HAT" width="100"/>
 </p>
 
-**RaspiHome Hub** transforme votre Raspberry Pi en un serveur domestique complet. Cette version majeure intègre une **station météo multi-sources** (capteur local, capteur distant via ESP32, et API web), un **assistant de jardinage proactif** avec suivi visuel, et une **interface graphique entièrement interactive**, tout en gardant la possibilité de protéger votre réseau avec AdGuard Home.
+**RaspiHome Hub** transforme votre Raspberry Pi en un serveur domotique complet. Cette version majeure intègre une station météo multi-sources (Sense HAT, ESP32, API web), un assistant de jardinage proactif, un gestionnaire de tâches ménagères et un moteur d'astuces contextuelles pour vous aider à gérer votre maison.
 
 ## Table des Matières
 
@@ -23,67 +23,71 @@
 
 ## Fonctionnalités Clés
 
-### Station Météo & Jardinage Intelligent
+### Station Météo & Domotique Intelligente
 
-* 📡 **Dashboard Météo Multi-Sources** : Affiche la température, l'humidité, la pression et l'indice de chaleur calculé selon la formule de la NOAA provenant de **3 sources** :
+* 📡 **Dashboard Météo Multi-Sources** : Affiche les données de 3 sources :
     * **Capteur Local** (Sense HAT sur le Pi).
-    * **Capteur Distant** (ESP32 via WiFi).
-    * **API Météo Web** (OpenWeatherMap, si configurée).
-* 🔄 **Rafraîchissement à la Demande** : Le bouton "Rafraîchir" envoie un ordre à l'ESP32 et au Sense HAT pour forcer une nouvelle lecture immédiate.
-* 🎨 **Données Visuelles Claires** :
-    * Les cartes affichent l'heure de la dernière mesure (ex: "il y a 2 min").
-    * Les valeurs de température et d'humidité **changent de couleur** (bleu/froid, rouge/chaud) pour une lecture rapide.
+    * **Capteur Distant** (ESP32 via WiFi, pour la salle de bain).
+    * **API Météo Web** (OpenWeatherMap).
+* 🔄 **Rafraîchissement à la Demande** : Le bouton "Rafraîchir" force une nouvelle lecture du Sense HAT et envoie un ordre de lecture à l'ESP32.
+* 🧠 **Assistant Domotique Proactif** :
+    * **Bandeau d'Alertes** : Affiche des alertes prioritaires pour le chauffage (si T° < 18°C le soir/weekend), les plantes à arroser et les tâches en retard.
+    * **Astuces Contextuelles** : Affiche des conseils météo (ouverture des volets basée sur `astral`, alerte humidité SDB) dans un emplacement dédié.
 * 📈 **Graphiques Interactifs Avancés** :
-    * **Zoom et Panoramique** : Zoomez avec la molette ou en pinçant (mobile) et déplacez-vous sur l'axe du temps. Un bouton "Reset Zoom" apparaît.
-    * **Affichage des Points** : De petits points sont visibles sur les courbes pour identifier les mesures.
-    * **Lignes de Seuil** : Affiche la plage de "Température Idéale" (18-25°C) directement sur le graphique.
-    * **Zones Nuit/Jour** : (Vue 24h) Affiche des zones grisées pour les heures de nuit, basées sur le lever/coucher du soleil de votre localisation.
-    * **Comparaison Visuelle** : Une case à cocher permet de superposer la température de la météo web sur le graphique.
-* 🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes visuels. Le choix est mémorisé.
-* 💧 **Assistant de Jardinage Proactif** :
-    * **Base de Données SQLite** : Gère les plantes, les types de plantes, et l'historique d'arrosage.
-    * **Suivi Visuel** : Une **barre de progression** sur chaque carte de plante montre l'état du cycle d'arrosage.
-    * **Gestion Complète via l'Interface** :
-        * Ajoutez, recherchez et supprimez vos plantes.
-        * Cliquez sur "Modifier" pour changer le **Nom**, le **Type** ET les **intervalles d'arrosage (semaines été/hiver)** directement depuis l'interface.
-    * **Notifications Telegram** : Envoie une alerte Telegram lorsque des plantes ont besoin d'eau.
-* 🧩 **Code JavaScript Modulaire** : Le code frontend est éclaté en modules (`api.js`, `ui.js`, `main.js`) pour une meilleure maintenabilité.
-* ⚙️ **Déploiement en tant que Service** : Le serveur Flask tourne en continu grâce à un service `systemd`, garantissant un lancement automatique et un redémarrage en cas de crash.
+    * **Zoom et Panoramique** : Zoomez et déplacez-vous sur l'axe du temps.
+    * **Plages de Temps Étendues** : Sélectionnez des périodes de 8h, 24h, 2 jours, 7 jours ou 30 jours.
+    * **Zones Nuit/Jour** : Affiche des zones grisées pour les heures de nuit (basées sur `astral`).
 
-### Protection Réseau avec AdGuard Home (Optionnelle)
-*   ⛔ **Blocage des Publicités et Traqueurs** : Filtre le contenu indésirable sur tous les appareils de votre réseau.
-*   🕵️ **Surveillance du Trafic** : Accédez à un tableau de bord détaillé pour voir les requêtes DNS.
-*   🔒 **Sécurité Améliorée** : Protège contre les sites de phishing et de logiciels malveillants.
+### Gestion de la Maison
+
+* 💧 **Assistant de Jardinage Proactif** :
+    * **Suivi Visuel** : Une barre de progression colorée (vert/jaune/rouge) montre l'état du cycle d'arrosage pour chaque plante.
+    * **Gestion Complète via l'Interface** : Ajoutez, modifiez et supprimez des plantes. Créez de nouveaux types de plantes (ex: "Plante tropicale") avec leurs propres règles d'arrosage été/hiver.
+* 🧹 **Gestion des Tâches Ménagères (Nouveau v1.7)** :
+    * **Suivi Visuel** : Affiche les tâches récurrentes (ex: "Nettoyer la litière") avec une barre de progression d'urgence.
+    * **API Complète** : Ajoutez, complétez et supprimez des tâches directement depuis l'interface.
+    * **Alertes** : Intégrées aux notifications Telegram et au bandeau d'alertes du tableau de bord.
+* 🔔 **Notifications Telegram** : Envoie des rappels groupés pour les plantes à arroser et les tâches en retard.
+
+### Interface & Fiabilité
+
+* 🌗 **Thème Clair & Sombre** : Basculez entre deux thèmes. Le choix est mémorisé dans le `localStorage`.
+* 🔐 **Authentification** : Une page de connexion protège l'accès au tableau de bord.
+* 🧩 **Code JavaScript Modulaire** : Le frontend est divisé en `api.js`, `ui.js`, et `main.js` pour une meilleure maintenabilité.
+* 🛠️ **Fiabilité des Données (Nouveau v1.5)** : Les affichages des capteurs distants et les astuces contextuelles lisent la **dernière valeur de la base de données** (`raspihome.db`) au lieu du cache, garantissant que les données sont toujours disponibles, même après un redémarrage du serveur.
+
+### Protection Réseau (Optionnelle)
+
+* ⛔ **Blocage des Publicités** : Possibilité d'installer AdGuard Home pour filtrer les publicités et traqueurs sur tout le réseau.
 
 ---
 
 ## Aperçu de l'Interface
 
-L'interface a été entièrement repensée pour être plus claire, plus esthétique et plus fonctionnelle.
+L'interface V3 intègre les capteurs multiples, les plantes et les nouvelles astuces contextuelles.
 
-| Thème Clair | Thème Sombre |
+| Thème Sombre | Thème Clair |
 | :---: | :---: |
-| ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V3.png) | ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V3.png) |
+| ![Tableau de bord - Thème Sombre](assets/dashboard-dark-screenshot_V3.png) | ![Tableau de bord - Thème Clair](assets/dashboard-white-screenshot_V3.png) |
 ---
 
 ## Architecture Technique v3.0
 
-L'architecture a été revue pour intégrer des capteurs distants et une interactivité accrue.
-
 1.  **Sources de Données** :
     * **Capteur Local (Sense HAT)** : Données intérieures du Pi.
-    * **Capteur Distant (ESP32)** : Un ESP32 avec capteur DHT envoie ses données à la route `/esp32/data` et écoute les ordres sur `/read_sensor`.
-    * **API OpenWeatherMap** : Données météo extérieures (si configurée).
-2.  **Script Python (`serveur_temp.py`)** :
-    * **Serveur Web (Flask)** : Expose de multiples routes API (`/alldata`, `/history`, `/plants`, `/config_data`, etc.).
-    * **Serveur de Commande** : Expose la route `/trigger_read` pour commander l'ESP32.
-    * **Calcul des Zones Nuit/Jour** : Utilise `python3-astral` pour calculer le lever/coucher du soleil et l'envoyer au graphique via `/config_data`.
+    * **Capteur Distant (ESP32)** : Un ESP32 envoie ses données à la route `/esp32/data`.
+    * **API OpenWeatherMap** : Données météo extérieures.
+2.  **Script Python (`serveur_temp.py`)**:
+    * **Serveur Web (Flask)** : Expose de multiples routes API (`/alldata`, `/plants`, `/tasks`, `/weather_tip`, etc.).
+    * **Serveur de Commande** : Expose la route `/refresh/all` pour commander l'ESP32.
+    * **Moteur d'Astuces** : Calcule les alertes (chauffage, plantes, tâches) et les astuces (volets, humidité SDB).
 3.  **Stockage Centralisé (SQLite)** :
-    * **`raspihome.db`** : Stocke tout : `plants`, `plant_rules`, `watering_history` et `sensor_readings` (avec les nouvelles colonnes `int_temp`, `ext_temp`, `int_hum`, `ext_hum`).
+    * **`raspihome.db`** : Stocke tout : `user`, `plants`, `plant_rules`, `watering_history`, `sensor_readings` et la nouvelle table `tasks`.
 4.  **Interface Utilisateur (Modulaire)** :
-    * `index.html` + `style.css`.
+    * `index.html` : Structure la page avec la nouvelle barre de navigation.
+    * `style.css` : Gère les thèmes clair/sombre et le style de la navigation "sticky".
     * Logique JS (`api.js`, `ui.js`, `main.js`).
-    * **Chart.js** avec les plugins `chartjs-plugin-zoom` et `chartjs-plugin-annotation` pour l'interactivité.
+    * **Chart.js** avec les plugins `zoom` et `annotation`.
 
 ---
 
@@ -93,21 +97,19 @@ L'architecture a été revue pour intégrer des capteurs distants et une interac
 
 * Un Raspberry Pi (testé sur un modèle 1 B+)
 * Une carte d'extension [Sense HAT](https://www.raspberrypi.com/products/sense-hat/)
-* **(Optionnel) Un ESP32** (ou ESP8266) et un capteur DHT11/22.
+* **(Optionnel) Un ESP32** (ou ESP8266) et un capteur (ex: DHT11/22).
 * Une alimentation fiable et une carte microSD.
 
 ### Logiciel
 
 * Python 3.x et Git.
-* Un compte et une **clé d'API** du service [OpenWeatherMap](https://openweathermap.org/) (Gratuit, optionnel mais recommandé).
+* Un compte et une **clé d'API** [OpenWeatherMap](https://openweathermap.org/) (Gratuit, optionnel mais recommandé).
 * Les bibliothèques Python (Flask, Requests, etc.).
 * Les bibliothèques système `python3-sense-hat` et `python3-astral`.
 
 ---
 
 ## Installation Facile
-
-### Étape 1 : Installation de la Station Météo
 
 1.  **Mettre à jour le système** :
     ```bash
@@ -126,15 +128,14 @@ L'architecture a été revue pour intégrer des capteurs distants et une interac
     sudo pip3 install -r requirements.txt
     ```
 4.  **Initialiser la base de données** :
+    *Si c'est une nouvelle installation*, utilisez le script de setup :
     ```bash
     python3 database_setup.py
     ```
-5.  **Configurer (Optionnel)** :
-    Éditez `config.py` pour ajouter vos clés API (OpenWeather, Telegram) et vos coordonnées (Latitude, Longitude).
+    *(Si vous mettez à jour une version existante, vous devrez peut-être ajouter la table `tasks` manuellement)*
 
-### Étape 2 : Installation d'AdGuard Home
-
-*(Suivez le guide officiel d'AdGuard Home)*
+5.  **Configurer** :
+    Copiez `config.py.example` en `config.py` et ajoutez vos clés API, coordonnées et IP de l'ESP32.
 
 ---
 
@@ -150,7 +151,7 @@ Il est fortement recommandé d'utiliser le service `systemd` fourni.
     ```
 2.  **Mettre à jour le chemin dans le service** (si nécessaire) :
     * Éditez le fichier : `sudo nano /etc/systemd/system/raspihome.service`
-    * Vérifiez que les lignes `WorkingDirectory` et `ExecStart` pointent bien vers `/home/paul/RaspiHome-Hub` (ou votre chemin).
+    * Vérifiez que `WorkingDirectory` et `ExecStart` pointent vers le bon chemin.
 3.  **Lancer et activer le service** :
     ```bash
     sudo systemctl daemon-reload
@@ -185,63 +186,52 @@ RaspiHome-Hub/
 ```
 ---
 
+---
+
 ## Personnalisation
 
 * **Configuration Principale** : Éditez `config.py` pour vos clés API, coordonnées et jetons Telegram.
-* **Seuils du Graphique** : Modifiez les seuils de température (`TEMP_IDEAL_MIN`, `TEMP_IDEAL_MAX`) directement dans `serveur_temp.py` (ou déplacez-les dans `config.py`).
-* **Règles d'Arrosage** : N'éditez plus les fichiers ! Utilisez la section "Gestion" -> "Gérer les types" directement sur l'interface web.
+* **Seuils de Température** : Modifiez `TEMP_IDEAL_MIN` et `TEMP_IDEAL_MAX` dans `serveur_temp.py` pour ajuster les alertes de chauffage.
+* **Règles d'Arrosage & Tâches** : N'éditez plus les fichiers ! Utilisez la section "Gestion" directement sur l'interface web pour ajouter/modifier vos plantes et tâches.
 
 ---
 
 ### Feuille de Route et Idées Futures
 
-Ce projet a un grand potentiel d'évolution. Voici ce qui est prévu et ce qui pourrait être imaginé.
+Ce projet évolue constamment. Voici ce qui a été fait et ce qui est à venir.
+
+### 🚀 Historique Récent
+
+-   **[✅] v1.1 - v1.4 : Fondation IoT & Jardinage**
+    -   [X] Intégration capteur distant (ESP32).
+    -   [X] Graphiques interactifs (Zoom, Pan, Seuils).
+    -   [X] Barre de progression d'arrosage.
+    -   [X] Notifications Telegram pour les plantes.
+    -   [X] Déploiement via `systemd`.
+
+-   **[✅] v1.5 : Gestion des Tâches Ménagères**
+    -   [X] **Fondation Backend**: Création de la table `tasks` et des routes API CRUD.
+    -   [X] **Interface de Suivi Visuel**: Ajout de "cartes de tâches" avec barre de progression d'urgence.
+    -   [X] **Notifications Proactives**: Ajout des tâches en retard aux alertes Telegram.
+    -   [X] **Intégration Intelligente**: Les tâches en retard sont prioritaires dans le bandeau d'alertes.
+    -   [X] **Gestion Complète via l'UI**: Formulaire d'ajout et boutons de gestion sur l'interface.
+
+-   **[✅] v1.6 - v1.7 : Améliorations UI & Fiabilité**
+    -   [X] **Navigation Rapide** : Ajout d'une barre de navigation "sticky" pour accéder aux sections.
+    -   [X] **Astuces Contextuelles** : Création d'une route `/weather_tip` et d'un emplacement UI dédié.
+    -   [X] **Alertes Chauffage** : Le bandeau d'alerte principal prévient si T° < 18°C le soir.
+    -   [X] **Plages de Graphique** : Ajout des options 8h, 2j, 7j, 30j.
+    -   [X] **Fiabilité BDD** : Les routes `/esp32_latest` et `/weather_tip` lisent désormais la BDD pour garantir l'affichage des données après un redémarrage.
 
 ### 🚀 Prochaines Étapes (Feuille de Route)
 
-Voici les fonctionnalités sur lesquelles nous travaillons activement pour les prochaines versions :
-
-- **[✅] v1.1 : Améliorations de l'Interface et des données**
-    - [X] Rendre les graphiques plus interactifs (zoom, info-bulles au survol).
-    - [X] Ajouter un bouton "Rafraîchir maintenant" pour les données en temps réel.
-    - [X] Afficher un indicateur visuel clair (ex: une icône de goutte d'eau) à côté des plantes qui ont besoin d'être arrosées.
-    - [X] Ajouter une fonction de suppression de plante directement depuis l'interface.
-    - [X] Migrer l'historique météo (data.csv) vers la base de données SQLite pour des performances accrues.
-          
-  
-- **[✅] v1.2 : Notifications Avancées**
-    - [X] Mettre en place un système de notifications par email ou via un bot Telegram pour les alertes critiques (plante à arroser, température trop haute/basse).
-    - [ ] Permettre de configurer des seuils d'alerte pour la température et l'humidité.
-
-- **[ ] v1.3 : Gestion des Plantes via l'UI**
-    - [X] Créer un formulaire dans l'interface web pour ajouter, modifier ou supprimer une plante sans avoir à éditer le fichier `plants.json` manuellement.
-    - [X] Ajouter d'autres Raspberry ou Esp-32 afin de terminer chaque température et pression de chaque piece de la maison/appartement.
-    - [X] Controler l'humidité de la salle de bain afin de controller l'ouverture des fenetres pour l'aération
-
-- **[✅ ] v1.4 : Hub IoT & Visualisation Avancée**
-   - [X] **Intégration Capteur Distant** (ESP32) avec rafraîchissement à la demande.
-   - [X] **Graphiques Interactifs** (Zoom, Pan, Points, Seuils, Zones Nuit/Jour).
-   - [X] **Comparaison Météo Web** sur le graphique.
-   - [X] **Barre de Progression** d'arrosage pour les plantes.
-   - [X] **Mode Édition Avancé** (Correction du layout + modification des intervalles d'arrosage).
-   - [X] **Affichage "Dernière MàJ"** et codes couleurs sur les cartes météo.
-   - [X] Migration de la DB vers un schéma `int_`/`ext_`.
-   - [X] ** Déploiement Fiable** : Remplacement du lancement manuel par un service systemd avec redémarrage automatique.
-     
-- **[ ] v1.5 : Gestion des taches ménagere**
-   - [ ] **Fondation Backend**: Création d'une nouvelle table tasks dans la base de données et des routes API (/tasks, /task/complete, /task/add) pour gérer le cycle de vie complet des tâches ménagères.
-   - [ ] **Interface de Suivi Visuel**: Ajout d'une nouvelle section sur le tableau de bord avec des "cartes de tâches", chacune dotée d'une barre de progression colorée (rouge/jaune/vert) indiquant l'urgence.
-   - [ ] **Notifications Proactives**: Le thread de notification Telegram enverra des rappels non seulement pour les plantes, mais aussi pour les tâches ménagères en retard.
-   - [ ] **Intégration Intelligente**: Les tâches en retard apparaissent en haut de la liste et sont affichées en priorité dans le bandeau d'astuces, à la place des conseils généraux
-   - [ ] **Gestion Complète via l'UI**: Création de formulaires pour ajouter et marquer les tâches comme terminées directement depuis l'interface, sans toucher au code.
-
-### 🚀 Prochaines Étapes
-- [ ] **Alertes Météo avancées** : Notifications Telegram pour seuils de température/humidité critiques (côté serveur), en cas de dépassement (ex: "Alerte : Température intérieure trop élevée !").
-- [ ] **Page Historique Détaillée** : Créer une nouvelle page avec un sélecteur de dates (calendrier), un tableau de données triable et un bouton d'export CSV.
-- [ ] **Indicateurs Visuels** : Remplacer les pourcentages d'humidité par des **jauges circulaires** et ajouter des mini-graphiques "sparklines" dans les cartes météo.
-- [ ] **Contrôle Salle de Bain** : Objectif d'ajouter un capteur dans la SDB pour contrôler l'aération.
+-   [ ] **Alertes Météo Avancées** : Notifications Telegram pour seuils critiques (ex: "Alerte : Température intérieure trop élevée !").
+-   [ ] **Page Historique Détaillée** : Créer une nouvelle page avec un sélecteur de dates (calendrier), un tableau de données triable et un bouton d'export CSV.
+-   [ ] **Indicateurs Visuels** : Remplacer les pourcentages d'humidité par des jauges circulaires et ajouter des mini-graphiques "sparklines" dans les cartes météo.
+-   [ ] **Contrôle Salle de Bain** : Objectif d'ajouter un capteur dans la SDB pour contrôler l'aération (Logique à affiner).
 
 ### 💡 Idées pour l'Avenir
+
 * **Capteurs d'Humidité du Sol** : L'évolution logique. Utiliser des capteurs capacitifs pour baser l'arrosage sur le besoin réel.
 * **Arrosage Automatique** : Connecter une pompe et un relais à l'ESP32 pour un arrosage 100% autonome.
 * **Support Multi-Capteurs** : Permettre d'ajouter *plusieurs* capteurs ESP32 (ex: un par pièce) et de les afficher sur le dashboard.
