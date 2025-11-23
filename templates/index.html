@@ -40,6 +40,7 @@
         <a href="#section-taches"><i class="fa-solid fa-broom"></i> Tâches</a>
         <a href="#section-gestion"><i class="fa-solid fa-wrench"></i> Gestion</a>
     </nav>
+
     <main class="container">
         <div class="card smart-recommendation-card" id="smart-recommendation-card"><i id="smart-recommendation-icon" class="fa-solid fa-lightbulb"></i><p id="smart-recommendation-text">Chargement...</p></div>
         
@@ -63,8 +64,12 @@
                 <li class="weather-item"><span><i class="fa-solid fa-gauge-high"></i> Pression:</span> <strong id="weather-pressure" class="value">-- hPa</strong></li>
             </ul>
         </div>
+
+        <div class="forecast-container" id="weather-forecast-container">
+            </div>
+
         <div class="data-grid">
-            <div class="card">
+            <div class="card" id="interior-card">
                 <h3><i class="fa-solid fa-house-chimney"></i> Intérieur (Maison)</h3>
                 <ul class="weather-item-list">
                     <li class="weather-item"><span><i class="fa-solid fa-temperature-half"></i> Temp:</span> <strong id="interior-temp" class="value">-- °C</strong></li>
@@ -73,6 +78,7 @@
                 </ul>
                 <small id="interior-timestamp" class="timestamp">...</small>
             </div>
+
             <div class="card">
                 <h3><i class="fa-solid fa-bath"></i> Distant (Salle de bain)</h3>
                 <ul class="weather-item-list">
@@ -87,15 +93,15 @@
             <i id="weather-tip-icon" class="fa-solid fa-sun"></i>
             <p id="weather-tip-text">Chargement de l'astuce météo...</p>
         </div>
+
         <h2 id="section-evolution"><i class="fa-solid fa-clock-rotate-left"></i> Évolution des Données</h2>
         <div class="card">
             <label for="period-select">Choisir la période :</label>
             <select id="period-select">
                 <option value="8h">Dernières 8 heures</option>
-                <option value="24h" selected>Dernières 24 heures</option>
-                <option value="2d">Derniers 2 jours</option>
-                <option value="7d">Dernière semaine</option>
-                <option value="30d">Dernier mois</option>
+                <option value="24h" selected>Vue: 24h (Zoom arrière: 7j)</option>
+                <option value="7d">Vue: 7j (Zoom arrière: 30j)</option>
+                <option value="30d">Vue: 30j (Toutes les données)</option>
             </select>
             <canvas id="myChart"></canvas>
         </div>
@@ -127,7 +133,7 @@
         <div class="modal-content"><span class="modal-close">&times;</span><h3>Modifier la Plante</h3><form id="edit-plant-form"><input type="hidden" id="edit-plant-id"><div class="form-group"><label for="edit-plant-name">Nom</label><input type="text" id="edit-plant-name" required></div><div class="form-group"><label for="edit-plant-type">Type</label><select id="edit-plant-type" required></select></div><button type="submit" class="btn-primary">Sauvegarder</button></form></div>
     </div>
     <div class="modal-overlay" id="add-plant-modal">
-        <div class="modal-content"><span class="modal-close">&times;</span><h3>Ajouter une nouvelle plante</h3><form id="add-plant-form-new"><div class="form-group"><label for="new-plant-name">Nom de la plante</label><input type="text" id="new-plant-name" required placeholder="Ex: Monstera Deliciosa"></div><div class="form-group"><label for="new-plant-type-select">Type de plante</label><select id="new-plant-type-select" required><option value="--new--">--- Ajouter un nouveau type ---</option></select></div><div id="new-type-fields" style="display: none; background-color: var(--background-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><h4>Créer un nouveau type</h4><div class="form-group"><label for="new-type-name">Nom du nouveau type</label><input type="text" id="new-type-name" placeholder="Ex: Plante tropicale"></div><div class="inline-form"><div><label for="new-type-summer">Arrosage Été (semaines)</label><input type="number" id="new-type-summer" min="1" placeholder="Ex: 1"></div><div><label for="new-type-winter">Arrosage Hiver (semaines)</label><input type="number" id="new-type-winter" min="1" placeholder="Ex: 2"></div></div></div><div class="form-group"><label for="new-plant-next-watering">Date du prochain arrosage</label><input type="date" id="new-plant-next-watering" required></div><button type="submit" class="btn-primary" style="width: 100%;">Enregistrer la plante</button></form></div>
+        <div class="modal-content"><span class="modal-close">&times;</span><h3>Ajouter une nouvelle plante</h3><form id="add-plant-form-new"><div class="form-group"><label for="new-plant-name">Nom de la plante</label><input type="text" id="new-plant-name" required placeholder="Ex: Monstera Deliciosa"></div><div class="form-group"><label for="new-plant-type-select">Type de plante</label><select id="new-plant-type-select" required><option value="" disabled selected>Choisir un type existant</option><option value="--new--">--- Ajouter un nouveau type ---</option></select></div><div id="new-type-fields" style="display: none; background-color: var(--background-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><h4>Créer un nouveau type</h4><div class="form-group"><label for="new-type-name">Nom du nouveau type</label><input type="text" id="new-type-name" placeholder="Ex: Plante tropicale"></div><div class="inline-form"><div><label for="new-type-summer">Arrosage Été (semaines)</label><input type="number" id="new-type-summer" min="1" placeholder="Ex: 1"></div><div><label for="new-type-winter">Arrosage Hiver (semaines)</label><input type="number" id="new-type-winter" min="1" placeholder="Ex: 2"></div></div></div><div class="form-group"><label for="new-plant-next-watering">Date du prochain arrosage</label><input type="date" id="new-plant-next-watering" required></div><button type="submit" class="btn-primary" style="width: 100%;">Enregistrer la plante</button></form></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -138,6 +144,6 @@
     <script src="/templates/api.js" type="module"></script>
     <script src="/templates/ui.js" type="module"></script>
     <script src="/templates/main.js" type="module"></script>
-    <script src="/templates/theme.js"></script>
+    <script src="/templates/theme.js" type="module"></script>
 </body>
 </html>

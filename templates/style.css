@@ -358,3 +358,113 @@ body.dark-mode .weather-tip-card {
     display: block;
     text-align: center;
 }
+/* =========================================
+   STYLES PRÉVISIONS MÉTÉO (V2.3 - Alignement Parfait)
+   ========================================= */
+
+.forecast-container {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1rem; /* Espace entre les cartes */
+    
+    /* Marge pour coller visuellement aux autres éléments */
+    margin-top: -1.5rem;
+    margin-bottom: 1.5rem;
+    
+    /* --- MOBILE PAR DÉFAUT (Scroll Horizontal) --- */
+    overflow-x: auto;
+    padding: 0.5rem 0.25rem 1.5rem 0.25rem; /* Espace pour l'ombre */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+/* Style scrollbar (Chrome/Safari) */
+.forecast-container::-webkit-scrollbar { height: 6px; }
+.forecast-container::-webkit-scrollbar-track { background: transparent; }
+.forecast-container::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 10px; }
+
+.forecast-card {
+    background: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 0.8rem;
+    
+    /* --- STYLE MOBILE (Taille fixe) --- */
+    min-width: 100px;
+    flex-shrink: 0;
+    
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.forecast-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--hover-shadow);
+}
+
+/* --- STYLE DES TEXTES --- */
+.forecast-card h4 {
+    margin: 0;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Taille des icônes animées */
+.forecast-card .icon {
+    font-size: 4.5px; /* Taille réduite pour entrer dans la carte */
+    margin: 1em 0;
+    width: 10em;
+    height: 8em;
+}
+
+.forecast-card .temp-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.forecast-card .temp-max {
+    font-weight: 700;
+    color: var(--text-color);
+    font-size: 1.2em;
+}
+
+.forecast-card .temp-min {
+    font-weight: 500;
+    color: var(--text-color-light);
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* =========================================
+   --- VERSION ORDINATEUR / TABLETTE ---
+   C'est ici que l'alignement parfait se fait
+   ========================================= */
+@media (min-width: 768px) {
+    .forecast-container {
+        /* On désactive le scroll sur grand écran */
+        overflow-x: visible;
+        
+        /* On enlève le padding latéral qui décale l'alignement */
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .forecast-card {
+        /* MAGIE : Chaque carte prend une part égale (1/5ème) de l'espace total */
+        flex: 1;
+        
+        /* On enlève la largeur fixe */
+        min-width: 0;
+        width: auto;
+    }
+}

@@ -1,6 +1,7 @@
 /*
  * Fichier : templates/ui.js
  * Rôle : Gère toutes les manipulations du DOM (affichage, modales, graphique).
+ * Version : 2.2 (Prévisions animées + Zoom graphique + Tâches)
  */
 
 let chartInstance = null;
@@ -48,6 +49,7 @@ document.querySelectorAll('.modal-overlay').forEach(modal => {
     });
 });
 
+
 // ======================= AFFICHAGE (RENDERING) =======================
 
 export function displaySmartRecommendation(data) {
@@ -59,10 +61,6 @@ export function displaySmartRecommendation(data) {
     }
 }
 
-/**
- * Affiche l'astuce météo contextuelle dans la carte dédiée.
- * @param {object} data - L'objet astuce (ex: {message: "...", icon: "..."})
- */
 export function displayWeatherTip(data) {
     const textElement = document.getElementById('weather-tip-text');
     const iconElement = document.getElementById('weather-tip-icon');
@@ -72,49 +70,98 @@ export function displayWeatherTip(data) {
     }
 }
 
-export function displayWeatherData(data) {
-    if (!data || typeof data.temperature !== 'number') return;
-    document.getElementById('weather-temp').textContent = `${data.temperature.toFixed(1)} °C`;
-    document.getElementById('weather-feels').textContent = `${data.feels_like.toFixed(1)} °C`;
-    document.getElementById('weather-humidity').textContent = `${data.humidity.toFixed(1)} %`;
-    document.getElementById('weather-pressure').textContent = `${data.pressure.toFixed(0)} hPa`;
-    document.getElementById('weather-description').textContent = data.description;
-
-    const iconContainer = document.getElementById('animated-weather-icon-container');
-    if (!iconContainer) {
-        console.error("Erreur critique : L'élément 'animated-weather-icon-container' est introuvable dans index.html !");
-        return;
-    }
-    const weatherIconCode = data.icon.slice(0, 2);
-
-    iconContainer.querySelectorAll('.icon').forEach(icon => {
-        icon.style.display = 'none';
-    });
-
-    let iconToShow = null;
-    switch (weatherIconCode) {
-        case '01': iconToShow = iconContainer.querySelector('.sunny'); break;
-        case '02': case '03': case '04': iconToShow = iconContainer.querySelector('.cloudy'); break;
-        case '09': iconToShow = iconContainer.querySelector('.sun-shower'); break;
-        case '10': iconToShow = iconContainer.querySelector('.rainy'); break;
-        case '11': iconToShow = iconContainer.querySelector('.thunder-storm'); break;
-        case '13': iconToShow = iconContainer.querySelector('.flurries'); break;
-        default: iconToShow = iconContainer.querySelector('.cloudy'); break;
-    }
-
-    if (iconToShow) {
-        iconToShow.style.display = 'inline-block';
+// --- FONCTION UTILITAIRE POUR LES ICÔNES ANIMÉES ---
+function getAnimatedIconHTML(iconCode) {
+    // Extrait le code (ex: '01d' -> '01')
+    const code = iconCode.slice(0, 2);
+    switch (code) {
+        case '01': // Ciel dégagé
+            return '<div class="icon sunny"><div class="sun"><div class="rays"></div></div></div>';
+        case '02': // Peu nuageux
+        case '03': // Nuageux
+        case '04': // Couvert
+            return '<div class="icon cloudy"><div class="cloud"></div><div class="cloud"></div></div>';
+        case '09': // Averses
+            return '<div class="icon sun-shower"><div class="cloud"></div><div class="sun"><div class="rays"></div></div><div class="rain"></div></div>';
+        case '10': // Pluie
+            return '<div class="icon rainy"><div class="cloud"></div><div class="rain"></div></div>';
+        case '11': // Orage
+            return '<div class="icon thunder-storm"><div class="cloud"></div><div class="lightning"><div class="bolt"></div><div class="bolt"></div></div></div>';
+        case '13': // Neige
+            return '<div class="icon flurries"><div class="cloud"></div><div class="snow"><div class="flake"></div><div class="flake"></div></div></div>';
+        default: // Par défaut (Nuageux)
+            return '<div class="icon cloudy"><div class="cloud"></div><div class="cloud"></div></div>';
     }
 }
 
-/**
- * Affiche les données du Sense HAT.
- * Ne cache PAS la carte, pour permettre le débogage.
- */
+export function displayWeatherData(data) {
+    if (!data || !data.current) return;
+
+    const current = data.current;
+    
+    // --- 1. Météo Actuelle ---
+    document.getElementById('weather-temp').textContent = `${current.temperature.toFixed(1)} °C`;
+    document.getElementById('weather-feels').textContent = `${current.feels_like.toFixed(1)} °C`;
+    document.getElementById('weather-humidity').textContent = `${current.humidity.toFixed(1)} %`;
+    document.getElementById('weather-pressure').textContent = `${current.pressure.toFixed(0)} hPa`;
+    document.getElementById('weather-description').textContent = current.description;
+
+    // Mise à jour de la grande icône animée principale
+    const iconContainer = document.getElementById('animated-weather-icon-container');
+    if (iconContainer) {
+        const weatherIconCode = current.icon.slice(0, 2);
+        iconContainer.querySelectorAll('.icon').forEach(icon => { icon.style.display = 'none'; });
+        
+        let iconClassSelector = '.cloudy';
+        switch (weatherIconCode) {
+            case '01': iconClassSelector = '.sunny'; break;
+            case '02': case '03': case '04': iconClassSelector = '.cloudy'; break;
+            case '09': iconClassSelector = '.sun-shower'; break;
+            case '10': iconClassSelector = '.rainy'; break;
+            case '11': iconClassSelector = '.thunder-storm'; break;
+            case '13': iconClassSelector = '.flurries'; break;
+        }
+        const iconToShow = iconContainer.querySelector(iconClassSelector);
+        if (iconToShow) iconToShow.style.display = 'inline-block';
+    }
+
+    // --- 2. Prévisions (avec icônes animées) ---
+    const forecastContainer = document.getElementById('weather-forecast-container');
+    if (!forecastContainer) return;
+    
+    forecastContainer.innerHTML = ''; 
+    
+    if (data.forecast_daily && data.forecast_daily.length > 0) {
+        data.forecast_daily.forEach((day, index) => {
+            const forecastCard = document.createElement('div');
+            forecastCard.className = 'forecast-card';
+            
+            const date = new Date(day.dt * 1000);
+            let dayName = date.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase();
+            
+            if (index === 0) { dayName = "AUJ"; }
+            else if (index === 1) { dayName = "DEM"; }
+            
+            // Génération de l'icône animée
+            const iconHTML = getAnimatedIconHTML(day.icon);
+            
+            forecastCard.innerHTML = `
+                <h4>${dayName}</h4>
+                ${iconHTML}
+                <div class="temp-group">
+                    <div class="temp-max">${day.temp_max.toFixed(0)}°</div>
+                    <div class="temp-min">${day.temp_min.toFixed(0)}°</div>
+                </div>
+            `;
+            forecastContainer.appendChild(forecastCard);
+        });
+    }
+}
+
 export function displaySenseHATData(data) {
     const card = document.getElementById('interior-card');
     if (!card) return;
-    card.style.display = 'block'; // S'assurer que la carte est visible
+    card.style.display = 'block'; 
 
     if (data && data.timestamp === "Capteur désactivé") {
         document.getElementById('interior-temp').textContent = `-- °C`;
@@ -153,13 +200,6 @@ export function displayESP32Data(data) {
     }
 }
 
-/**
- * Crée le graphique.
- * Accepte 'viewPeriod' pour définir le zoom initial.
- * @param {object} chartData - Les données (datasets)
- * @param {object} configData - La config (seuils, etc.)
- * @param {string} viewPeriod - La vue sélectionnée (ex: '24h', '7d')
- */
 export function createChart(chartData, configData, viewPeriod = '30d') {
     const ctx = document.getElementById('myChart').getContext('2d');
     if (chartInstance) {
@@ -187,24 +227,21 @@ export function createChart(chartData, configData, viewPeriod = '30d') {
         tempThresholds.max = { type: 'line', yMin: configData.temp_ideal_max, yMax: configData.temp_ideal_max, borderColor: 'rgba(255, 0, 0, 0.3)', borderWidth: 2, borderDash: [5, 5], label: { content: `${configData.temp_ideal_max}°C`, display: true, position: 'start' } };
     }
 
-    
-    // Définition du zoom initial basé sur la vue
+    // Gestion du Zoom Initial
     const now = new Date();
-    let initialMin = undefined; // 'undefined' = zoom automatique
-    let initialMax = new Date(now); // On zoome toujours jusqu'à "maintenant"
+    let initialMin = undefined;
+    let initialMax = new Date(now);
 
     if (viewPeriod === '8h') {
         initialMin = new Date(new Date().setHours(now.getHours() - 8));
-        timeUnit = 'hour'; // Forcer l'unité en 'hour'
+        timeUnit = 'hour';
     } else if (viewPeriod === '24h') {
         initialMin = new Date(new Date().setDate(now.getDate() - 1));
-        timeUnit = 'hour'; // Forcer l'unité en 'hour'
+        timeUnit = 'hour';
     } else if (viewPeriod === '7d') {
         initialMin = new Date(new Date().setDate(now.getDate() - 7));
-        timeUnit = 'day'; // Forcer l'unité en 'day'
+        timeUnit = 'day';
     }
-    // Si viewPeriod est '30d', initialMin reste undefined, le graphique
-    // affichera toutes les données chargées (30 jours).
     
     chartInstance = new Chart(ctx, {
         type: 'line',
@@ -219,14 +256,10 @@ export function createChart(chartData, configData, viewPeriod = '30d') {
                     time: { 
                         unit: timeUnit, 
                         tooltipFormat: 'dd MMM HH:mm', 
-                        displayFormats: { 
-                            hour: 'HH:mm',
-                            day: 'dd MMM'
-                        }
+                        displayFormats: { hour: 'HH:mm', day: 'dd MMM' }
                     },
                     adapters: { date: { locale: 'fr' }},
                     title: { display: true, text: 'Date / Heure' },
-                    // Application du zoom initial
                     min: initialMin,
                     max: initialMax
                 },
@@ -258,7 +291,6 @@ export function displayPlants(plants) {
         
         const daysSinceWatered = plant.days_since_watered;
         const waterFrequency = plant.watering_frequency;
-
         const percentage = Math.max(0, 100 - (daysSinceWatered / waterFrequency) * 100);
         
         let statusColorVar = 'var(--success-color)';
@@ -300,7 +332,6 @@ export function displayTasks(tasks) {
         taskCard.className = 'plant'; 
         
         const percentage = task.urgency_percentage;
-        
         let statusColorVar = 'var(--success-color)';
         if (percentage < 30) { statusColorVar = 'var(--warning-color)'; }
         if (percentage <= 0) { statusColorVar = 'var(--danger-color)'; }

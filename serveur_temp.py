@@ -118,7 +118,6 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 # ======================= 3. FONCTIONS UTILITAIRES & THREADS =======================
-# ... (Toutes les fonctions utilitaires et les threads sont inchangés) ...
 def get_season(month):
     return 'winter' if month in (11, 12, 1, 2, 3, 4) else 'summer'
 
@@ -153,23 +152,105 @@ def send_telegram_message(message):
         except Exception as e:
             print(f"❌ Impossible d'envoyer la notification Telegram à {chat_id} : {e}")
 
+# --- MODIFIÉ V2.1 : Utilisation de l'API Forecast (5 day / 3 hour) ---
+def fetch_weather_data():
+    """Récupère les données météo ACTUELLES et les PRÉVISIONS (via l'API 5 jours)."""
+    try:
+        # 1. Météo Actuelle
+        url_current = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
+        response_current = requests.get(url_current, timeout=10)
+        
+        if response_current.status_code != 200:
+            print(f"❌ Erreur API Météo (Current): {response_current.json().get('message')}")
+            return
+
+        data_curr = response_current.json()
+        
+        current_data = {
+            "temperature": data_curr['main']['temp'],
+            "feels_like": data_curr['main']['feels_like'],
+            "humidity": data_curr['main']['humidity'],
+            "pressure": data_curr['main']['pressure'],
+            "description": data_curr['weather'][0]['description'].capitalize(),
+            "icon": data_curr['weather'][0]['icon']
+        }
+
+        # 2. Prévisions (5 jours / 3 heures)
+        url_forecast = f"http://api.openweathermap.org/data/2.5/forecast?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
+        response_forecast = requests.get(url_forecast, timeout=10)
+        
+        daily_forecasts = []
+        
+        if response_forecast.status_code == 200:
+            data_fore = response_forecast.json()
+            
+            # --- Algorithme d'agrégation ---
+            # L'API donne des données toutes les 3h. On doit les regrouper par jour pour trouver Min/Max.
+            grouped_by_day = {}
+            
+            for item in data_fore['list']:
+                # timestamp to date string (YYYY-MM-DD)
+                dt_txt = item['dt_txt'].split(' ')[0]
+                
+                if dt_txt not in grouped_by_day:
+                    grouped_by_day[dt_txt] = {'temps': [], 'icons': [], 'dt': item['dt']}
+                
+                grouped_by_day[dt_txt]['temps'].append(item['main']['temp'])
+                # On prend l'icône de 12:00 si possible, sinon la première dispo
+                if "12:00:00" in item['dt_txt']:
+                    grouped_by_day[dt_txt]['midday_icon'] = item['weather'][0]['icon']
+                    grouped_by_day[dt_txt]['description'] = item['weather'][0]['description']
+                
+                grouped_by_day[dt_txt]['icons'].append(item['weather'][0]['icon'])
+
+            # Convertir le dictionnaire en liste propre pour le frontend
+            today_str = datetime.now().strftime('%Y-%m-%d')
+            
+            for date_str, info in grouped_by_day.items():
+                # On ignore aujourd'hui car on a déjà la météo actuelle, on veut les prévisions "futures"
+                # Ou on peut l'inclure si on veut voir l'évolution de la journée. Gardons-le.
+                
+                # Choisir l'icône : celle de midi, ou la plus fréquente de la journée
+                final_icon = info.get('midday_icon', max(set(info['icons']), key=info['icons'].count))
+                final_desc = info.get('description', "")
+
+                daily_forecasts.append({
+                    "dt": info['dt'],
+                    "temp_min": min(info['temps']),
+                    "temp_max": max(info['temps']),
+                    "icon": final_icon,
+                    "description": final_desc
+                })
+                
+            # Garder seulement les 5 prochains jours
+            daily_forecasts = daily_forecasts[:5]
+
+        else:
+            print(f"⚠️ Avertissement: Impossible de récupérer les prévisions ({response_forecast.status_code})")
+
+        # 3. Stockage
+        with data_lock:
+            latest_sensor_data["weather"] = {
+                "current": current_data,
+                "forecast_daily": daily_forecasts
+            }
+        
+        # 4. Sauvegarde BDD (Météo actuelle seulement)
+        with app.app_context():
+            db.session.add(SensorReading(source='weather', 
+                                         temperature=current_data['temperature'], 
+                                         humidity=current_data['humidity'], 
+                                         pressure=current_data['pressure']))
+            db.session.commit()
+        print("✅ Données météo (actuelles + prévisions 5j) rafraîchies.")
+            
+    except Exception as e:
+        print(f"❌ Exception dans la fonction météo: {e}")
+
 def weather_thread_func():
     while True:
-        try:
-            url = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
-            response = requests.get(url, timeout=10)
-            if response.status_code != 200:
-                print(f"❌ Erreur API Météo: {response.json().get('message', 'Erreur inconnue')}")
-                time.sleep(300); continue
-            data = response.json()
-            with data_lock:
-                latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
-            with app.app_context():
-                db.session.add(SensorReading(source='weather', temperature=data['main']['temp'], humidity=data['main']['humidity'], pressure=data['main']['pressure']))
-                db.session.commit()
-        except Exception as e:
-            print(f"❌ Exception dans le thread météo: {e}")
-        time.sleep(900)
+        fetch_weather_data()
+        time.sleep(900) # 15 minutes
 
 def sensehat_thread_func():
     if sense:
@@ -217,7 +298,8 @@ def alert_monitor_thread():
                 
                 last_esp_reading = SensorReading.query.filter_by(source='esp32').order_by(SensorReading.timestamp.desc()).first()
                 with data_lock:
-                    weather_data = latest_sensor_data.get("weather", {})
+                    # Attention : structure imbriquée maintenant !
+                    weather_data = latest_sensor_data.get("weather", {}).get("current", {})
                 
                 weather_desc = weather_data.get("description", "").lower()
                 weather_temp = weather_data.get("temperature")
@@ -248,17 +330,97 @@ def alert_monitor_thread():
                          alert_states["moisissure"] = False
 
                 if weather_temp and current_hour == 10:
-                    if weather_temp > 30.0:
+                    if weather_temp and weather_temp > 30.0:
                         if not alert_states["canicule"]:
                             send_telegram_message(f"☀️ ALERTE CANICULE : {weather_temp:.0f}°C attendus. Pensez à fermer les volets et à vous hydrater.")
                             alert_states["canicule"] = True
-                    elif weather_temp < 25.0:
+                    elif weather_temp and weather_temp < 25.0:
                         alert_states["canicule"] = False
 
         except Exception as e:
             print(f"❌ Erreur dans le thread d'alertes : {e}")
             
         time.sleep(600)
+
+def weekly_report_thread():
+    print("🚀 Lancement du thread de rapport hebdomadaire...")
+    
+    def get_sleep_time_until_sunday_18h():
+        now = datetime.now()
+        days_until_sunday = (6 - now.weekday()) % 7
+        
+        if days_until_sunday == 0 and now.hour >= 18:
+            days_until_sunday = 7
+            
+        next_sunday = (now + timedelta(days=days_until_sunday)).replace(hour=18, minute=0, second=0, microsecond=0)
+        
+        sleep_seconds = (next_sunday - now).total_seconds()
+        
+        if sleep_seconds < 60:
+             sleep_seconds += 7 * 24 * 60 * 60
+             next_sunday += timedelta(days=7)
+
+        print(f"   [Rapport Hebdo] Prochain rapport prévu pour : {next_sunday}. En attente pendant {sleep_seconds/3600:.2f} heures.")
+        return sleep_seconds
+
+    time.sleep(10)
+        
+    while True:
+        try:
+            time.sleep(get_sleep_time_until_sunday_18h())
+        except Exception as e:
+            print(f"   [Rapport Hebdo] Erreur de veille : {e}. Réessai dans 1h.")
+            time.sleep(3600)
+            continue
+
+        print("📊 Génération du rapport hebdomadaire...")
+        try:
+            with app.app_context():
+                since_last_week = datetime.utcnow() - timedelta(days=7)
+                
+                avg_temp_sdb = db.session.query(func.avg(SensorReading.temperature))\
+                                         .filter(SensorReading.source == 'esp32', SensorReading.timestamp >= since_last_week).scalar()
+                avg_hum_sdb = db.session.query(func.avg(SensorReading.humidity))\
+                                        .filter(SensorReading.source == 'esp32', SensorReading.timestamp >= since_last_week).scalar()
+                avg_temp_ext = db.session.query(func.avg(SensorReading.temperature))\
+                                         .filter(SensorReading.source == 'weather', SensorReading.timestamp >= since_last_week).scalar()
+                
+                plantes_arrosecs_count = WateringHistory.query.filter(WateringHistory.watering_date >= (date.today() - timedelta(days=7))).count()
+                
+                taches_faites_ids = db.session.query(Task.id).filter(Task.last_completed >= (date.today() - timedelta(days=7))).all()
+                taches_faites_count = len(taches_faites_ids)
+                
+                plantes = Plant.query.all()
+                plante_en_retard = None
+                max_retard = -1
+                for p in plantes:
+                    info = calculate_watering_info(p)
+                    retard = info["days_since_watered"] - info["watering_frequency"]
+                    if retard > max_retard:
+                        max_retard = retard
+                        plante_en_retard = p
+
+                message = "📊 *Rapport Hebdomadaire RaspiHome*\n\n"
+                
+                message += "--- *Environnement (Moy. 7j)* ---\n"
+                if avg_temp_ext is not None:
+                    message += f"🌡️ Extérieur : `{avg_temp_ext:.1f}°C`\n"
+                if avg_temp_sdb is not None:
+                    message += f"🛁 Salle de bain : `{avg_temp_sdb:.1f}°C` (Hum: `{avg_hum_sdb:.0f}%`)\n"
+                
+                message += "\n--- *Activité (7j)* ---\n"
+                message += f"💧 Plantes arrosées : `{plantes_arrosecs_count}` fois\n"
+                message += f"🧹 Tâches complétées : `{taches_faites_count}` fois\n"
+                
+                if plante_en_retard and max_retard > 0:
+                    message += f"\n⚠️ *Priorité :* `{plante_en_retard.name}` a `{max_retard}` jours de retard d'arrosage."
+                else:
+                    message += "\n✅ *Statut :* Toutes les plantes sont à jour !"
+                
+                send_telegram_message(message)
+
+        except Exception as e:
+            print(f"❌ Erreur lors de la génération du rapport hebdomadaire : {e}")
 
 def send_startup_notification():
     ngrok_url = None
@@ -300,7 +462,7 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# ======================= 5. ROUTES DE L'APPLICATION (CORRIGÉES) =======================
+# ======================= 5. ROUTES DE L'APPLICATION =======================
 @app.route('/')
 @login_required
 def serve_index():
@@ -464,13 +626,11 @@ def handle_plant_types():
             db.session.add(PlantRule(name=data['name'], summer_weeks=data['summer_weeks'], winter_weeks=data['winter_weeks']));
         db.session.commit(); return jsonify({"message": "Type de plante sauvegardé"});
 
-# --- ROUTES TÂCHES V1.5 (REFORMATÉES) ---
 @app.route('/tasks', methods=['GET'])
 @login_required
 def get_tasks():
     tasks = Task.query.all()
     tasks_data = []
-    # La ligne 469 (maintenant 478) est maintenant correctement indentée
     for task in tasks: 
         tasks_data.append({
             "id": task.id, 
@@ -510,7 +670,6 @@ def delete_task(task_id):
     db.session.delete(task)
     db.session.commit()
     return jsonify({"message": "Tâche supprimée avec succès"})
-# -----------------------------------
 
 @app.route('/smart_recommendation', methods=['GET'])
 @login_required
@@ -520,7 +679,6 @@ def get_smart_recommendation():
         day_of_week = now.weekday()
         current_hour = now.hour
 
-        # Priorité 1 : Alerte Chauffage (basée sur ESP32)
         room_temp = None
         with data_lock:
             room_temp = latest_sensor_data.get("esp32", {}).get("temperature")
@@ -532,19 +690,16 @@ def get_smart_recommendation():
                 icon = "fa-solid fa-fire"
                 return jsonify({"message": message, "icon": icon})
 
-        # Priorité 2 : Plantes à arroser
         plants_to_water = [p.name for p in Plant.query.all() if calculate_watering_info(p)["days_since_watered"] >= calculate_watering_info(p)["watering_frequency"]]
         if plants_to_water:
             message, icon = f"Rappel : Il est temps d'arroser {', '.join(plants_to_water)} !", "fa-tint"
             return jsonify({"message": message, "icon": icon})
 
-        # Priorité 3 : Tâches en retard
         overdue_tasks = [t.name for t in Task.query.all() if calculate_task_info(t)["is_due"]]
         if overdue_tasks:
             message, icon = f"Rappel : Tâches en retard : {', '.join(overdue_tasks)} !", "fa-broom"
             return jsonify({"message": message, "icon": icon})
 
-        # Priorité 4 : Astuce aléatoire
         random_tip = Tip.query.order_by(func.random()).first()
         message = random_tip.tip if random_tip else "Pensez à vérifier vos plantes aujourd'hui."
         icon = "fa-lightbulb"
@@ -587,11 +742,21 @@ def get_random_tip():
 @login_required
 def refresh_all_sensors():
     try:
+        # On utilise l'ancienne API pour le refresh
         url = f"http://api.openweathermap.org/data/2.5/weather?lat={config.LATITUDE}&lon={config.LONGITUDE}&appid={config.API_KEY}&units=metric&lang=fr"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json(); print("🔄 Météo rafraîchie manuellement.")
-            with data_lock: latest_sensor_data["weather"] = {"temperature": data['main']['temp'], "feels_like": data['main']['feels_like'], "humidity": data['main']['humidity'], "pressure": data['main']['pressure'], "description": data['weather'][0]['description'].capitalize(), "icon": data['weather'][0]['icon']}
+            current_data = {
+                "temperature": data['main']['temp'],
+                "feels_like": data['main']['feels_like'],
+                "humidity": data['main']['humidity'],
+                "pressure": data['main']['pressure'],
+                "description": data['weather'][0]['description'].capitalize(),
+                "icon": data['weather'][0]['icon']
+            }
+            with data_lock:
+                latest_sensor_data["weather"] = {"current": current_data} # Format compatible avec l'interface
     except Exception as e: print(f"❌ Erreur de rafraîchissement manuel de la météo: {e}")
     
     if sense:
@@ -617,8 +782,11 @@ def refresh_all_sensors():
 if __name__ == '__main__':
     with app.app_context():
         # db.create_all() 
-        pass
-    print("🚀 Lancement du thread d'enregistrement météo...")
+        
+        print("🚀 Lancement de la récupération météo initiale...")
+        fetch_weather_data()
+        
+    print("🚀 Lancement du thread d'enregistrement météo (toutes les 15 min)...")
     threading.Thread(target=weather_thread_func, daemon=True).start()
     
     if sense:
@@ -634,6 +802,9 @@ if __name__ == '__main__':
     
     print("🚀 Lancement du thread de monitoring d'alertes avancées...")
     threading.Thread(target=alert_monitor_thread, daemon=True).start()
+    
+    print("🚀 Lancement du thread de rapport hebdomadaire...")
+    threading.Thread(target=weekly_report_thread, daemon=True).start()
     
     print("🚀 Lancement du serveur Flask sur http://0.0.0.0:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)

@@ -5,7 +5,7 @@ config.py
 __pycache__/
 *.pyc
 
-# Fichiers de base de données (ne jamais stocker les données sur Git)
+# Fichiers de base de données
 *.db
 *.db.bak
 
@@ -15,3 +15,6 @@ instance/
 # Fichiers de test et d'administration
 test_notification.py
 create_admin.py
+
+# Fichiers de sauvegarde manuels
+backup*
